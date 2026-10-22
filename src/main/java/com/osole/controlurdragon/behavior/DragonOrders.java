@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.player.Player;
 
@@ -12,40 +13,80 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Orders given from the menu or hotkeys that Ice and Fire has no command for: attack a chosen target,
- * guard an area. The guard area is saved on the dragon itself, the attack order only lasts until the target is gone.
- */
 public final class DragonOrders {
     private static final String GUARD_TAG = "controlurdragon_guard";
+    private static final String STANCE_TAG = "controlurdragon_stance";
 
-    /** dragon UUID → ordered target UUID */
     private static final Map<UUID, UUID> ATTACK_ORDERS = new ConcurrentHashMap<>();
+    private static boolean ordering;
 
     private DragonOrders() {
+    }
+
+    public enum Stance {
+        NORMAL, DEFENSIVE, PASSIVE;
+
+        public static Stance byId(int id) {
+            Stance[] values = values();
+            return id >= 0 && id < values.length ? values[id] : NORMAL;
+        }
     }
 
     public record GuardArea(String dimension, BlockPos center, int radius) {
     }
 
-    // ---- attack ---------------------------------------------------------------------------------
-
-    /** @return false if the target is not allowed (the owner, the owner's own pets, ...). */
     public static boolean canAttack(DragonBaseEntity dragon, Entity target) {
         if (!(target instanceof LivingEntity living) || !living.isAlive() || target == dragon) return false;
         if (dragon.getOwner() != null && target == dragon.getOwner()) return false;
         if (target instanceof Player player && (player.isCreative() || player.isSpectator())) return false;
-        // Never turn on the owner's own pets and dragons.
+        if (DragonCarry.isCarried(target)) return false;
         return !(target instanceof OwnableEntity ownable && dragon.getOwnerUUID() != null
                 && dragon.getOwnerUUID().equals(ownable.getOwnerUUID()));
+    }
+
+    public static void setOrderedTarget(DragonBaseEntity dragon, LivingEntity target) {
+        ordering = true;
+        try {
+            dragon.setTarget(target);
+        } finally {
+            ordering = false;
+        }
+    }
+
+    public static boolean allowsTarget(DragonBaseEntity dragon, LivingEntity target) {
+        if (target == null || ordering) return true;
+        if (DragonCarry.isCarried(target)) return false;
+        return switch (getStance(dragon)) {
+            case NORMAL -> true;
+            case PASSIVE -> false;
+            case DEFENSIVE -> isAggressor(dragon, target);
+        };
+    }
+
+    private static boolean isAggressor(DragonBaseEntity dragon, LivingEntity target) {
+        LivingEntity owner = dragon.getOwner();
+        if (target == dragon.getLastHurtByMob()) return true;
+        if (owner != null && target == owner.getLastHurtByMob()) return true;
+        return target instanceof Mob mob && mob.getTarget() != null
+                && (mob.getTarget() == dragon || mob.getTarget() == owner);
+    }
+
+    public static Stance getStance(DragonBaseEntity dragon) {
+        return Stance.byId(dragon.getPersistentData().getInt(STANCE_TAG));
+    }
+
+    public static void setStance(DragonBaseEntity dragon, Stance stance) {
+        dragon.getPersistentData().putInt(STANCE_TAG, stance.ordinal());
+        LivingEntity target = dragon.getTarget();
+        if (target != null && getAttackOrder(dragon) == null && !allowsTarget(dragon, target)) dragon.setTarget(null);
     }
 
     public static void attack(DragonBaseEntity dragon, LivingEntity target) {
         if (dragon.isOrderedToSit() || dragon.getCommand() == 1) dragon.setCommand(2);
         dragon.setOrderedToSit(false);
         dragon.setInSittingPose(false);
-        dragon.setTarget(target);
         ATTACK_ORDERS.put(dragon.getUUID(), target.getUUID());
+        setOrderedTarget(dragon, target);
     }
 
     public static UUID getAttackOrder(DragonBaseEntity dragon) {
@@ -56,7 +97,12 @@ public final class DragonOrders {
         ATTACK_ORDERS.remove(dragon.getUUID());
     }
 
-    // ---- guard ----------------------------------------------------------------------------------
+    public static void stop(DragonBaseEntity dragon) {
+        clearAttackOrder(dragon);
+        clearGuard(dragon);
+        dragon.setLastHurtByMob(null);
+        if (dragon.getTarget() != null) dragon.setTarget(null);
+    }
 
     public static void guard(DragonBaseEntity dragon, BlockPos center, int radius) {
         dragon.setCommand(0);
@@ -82,7 +128,6 @@ public final class DragonOrders {
         dragon.getPersistentData().remove(GUARD_TAG);
     }
 
-    /** A plain command (sit, follow, wander, come) cancels attack and guard orders. */
     public static void clearAll(DragonBaseEntity dragon) {
         clearAttackOrder(dragon);
         clearGuard(dragon);

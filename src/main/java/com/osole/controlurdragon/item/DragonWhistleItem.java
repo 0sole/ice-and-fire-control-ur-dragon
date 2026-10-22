@@ -15,10 +15,6 @@ import net.minecraft.world.level.Level;
 
 import java.util.List;
 
-/**
- * The control item. While it is anywhere in the inventory, the menu key opens the dragon menu.
- * Using it (right click) opens the menu too.
- */
 public class DragonWhistleItem extends Item {
     public DragonWhistleItem(Properties properties) {
         super(properties);

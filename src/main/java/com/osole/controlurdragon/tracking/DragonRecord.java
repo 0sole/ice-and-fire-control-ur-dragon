@@ -4,20 +4,16 @@ import net.minecraft.nbt.CompoundTag;
 
 import java.util.UUID;
 
-/**
- * Everything the mod remembers about one tamed dragon, including a full backup (snapshot) of its data.
- */
 public final class DragonRecord {
     public enum State {
-        /** Loaded in the world right now. */
         ALIVE,
-        /** Saved to disk normally (its chunk was unloaded). */
+
         UNLOADED,
-        /** Taken into an item such as the Dragon Horn. Not restorable, the item still holds it. */
+
         STORED,
-        /** Deleted from the world without dying. Restorable from the snapshot. */
+
         LOST,
-        /** Died normally. */
+
         DEAD
     }
 

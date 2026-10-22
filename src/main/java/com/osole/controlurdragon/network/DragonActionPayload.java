@@ -7,17 +7,11 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 import java.util.UUID;
 
-/**
- * Client → server: an order for one dragon chosen in the menu.
- *
- * @param text     the new name for {@link Action#RENAME}, empty otherwise
- * @param targetId entity id of the target for {@link Action#ATTACK}, -1 otherwise
- */
-public record DragonActionPayload(UUID dragon, Action action, String text, int targetId) implements CustomPacketPayload {
+public record DragonActionPayload(UUID dragon, Action action, String text, int value) implements CustomPacketPayload {
     public static final int MAX_NAME_LENGTH = 32;
 
     public enum Action {
-        SIT, FOLLOW, WANDER, COME, RENAME, RESTORE, ATTACK, GUARD, DELETE
+        SIT, FOLLOW, WANDER, BRING, RENAME, RESTORE, ATTACK, STOP, GUARD, STANCE, CARRY, DROP, DELETE
     }
 
     public DragonActionPayload(UUID dragon, Action action, String text) {
@@ -32,7 +26,7 @@ public record DragonActionPayload(UUID dragon, Action action, String text, int t
         buf.writeUUID(payload.dragon);
         buf.writeEnum(payload.action);
         buf.writeUtf(payload.text, MAX_NAME_LENGTH * 4);
-        buf.writeVarInt(payload.targetId);
+        buf.writeVarInt(payload.value);
     }
 
     private static DragonActionPayload read(FriendlyByteBuf buf) {

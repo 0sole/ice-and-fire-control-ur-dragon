@@ -25,10 +25,6 @@ import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Keys, all changeable in Options → Controls → "IaF: Control Ur Dragon":
- * V menu, G all dragons attack what you look at, H all dragons follow, J all dragons guard here.
- */
 public final class ClientEvents {
     public static final String CATEGORY = "key.categories.controlurdragon";
     public static final KeyMapping OPEN_MENU = new KeyMapping("key.controlurdragon.menu",
@@ -39,8 +35,11 @@ public final class ClientEvents {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
     public static final KeyMapping GUARD_ALL = new KeyMapping("key.controlurdragon.guard_all",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, CATEGORY);
+    public static final KeyMapping STOP_ALL = new KeyMapping("key.controlurdragon.stop_all",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_N, CATEGORY);
+    public static final KeyMapping CARRY = new KeyMapping("key.controlurdragon.carry",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY);
 
-    /** How far the "attack what I look at" ray reaches. */
     private static final double TARGET_RANGE = 96D;
 
     private ClientEvents() {
@@ -54,6 +53,8 @@ public final class ClientEvents {
             event.register(ATTACK_ALL);
             event.register(FOLLOW_ALL);
             event.register(GUARD_ALL);
+            event.register(STOP_ALL);
+            event.register(CARRY);
         }
     }
 
@@ -68,7 +69,7 @@ public final class ClientEvents {
                     minecraft.player.displayClientMessage(Component.translatable("controlurdragon.menu.no_whistle"), true);
                     continue;
                 }
-                // The server answers with the dragon list, which opens the menu (ClientHooks).
+
                 PacketDistributor.sendToServer(RequestDragonListPayload.INSTANCE);
             }
             while (ATTACK_ALL.consumeClick()) {
@@ -83,6 +84,15 @@ public final class ClientEvents {
             while (FOLLOW_ALL.consumeClick()) {
                 if (canOrder(minecraft))
                     PacketDistributor.sendToServer(new GroupOrderPayload(GroupOrderPayload.Order.FOLLOW, -1));
+            }
+            while (STOP_ALL.consumeClick()) {
+                if (canOrder(minecraft))
+                    PacketDistributor.sendToServer(new GroupOrderPayload(GroupOrderPayload.Order.STOP, -1));
+            }
+            while (CARRY.consumeClick()) {
+                if (!canOrder(minecraft)) continue;
+                LivingEntity target = lookedAt(minecraft.player);
+                PacketDistributor.sendToServer(new GroupOrderPayload(GroupOrderPayload.Order.CARRY, target == null ? -1 : target.getId()));
             }
             while (GUARD_ALL.consumeClick()) {
                 if (canOrder(minecraft))
@@ -100,7 +110,6 @@ public final class ClientEvents {
         }
     }
 
-    /** The living thing the player is looking at, up to {@link #TARGET_RANGE} blocks, not through walls. */
     static LivingEntity lookedAt(Player player) {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1F);
@@ -110,7 +119,8 @@ public final class ClientEvents {
         Vec3 end = eye.add(look.scale(range));
         AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1D);
         EntityHitResult hit = ProjectileUtil.getEntityHitResult(player, eye, end, box,
-                e -> !e.isSpectator() && e.isPickable() && e != player.getVehicle(), range * range);
+                e -> !e.isSpectator() && e.isPickable() && e != player.getVehicle()
+                        && !(e instanceof PartEntity<?> part && part.getParent() == player.getVehicle()), range * range);
         if (hit == null) return null;
         Entity entity = hit.getEntity();
         if (entity instanceof PartEntity<?> part) entity = part.getParent();

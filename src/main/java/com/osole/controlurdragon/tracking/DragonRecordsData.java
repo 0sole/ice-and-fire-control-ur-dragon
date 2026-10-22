@@ -14,15 +14,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * World save data (data/controlurdragon_records.dat) holding a record and backup for every tamed dragon.
- */
 public class DragonRecordsData extends SavedData {
     private static final String FILE_NAME = "controlurdragon_records";
 
     private final Map<UUID, DragonRecord> records = new HashMap<>();
-    /** Game time of each player's last restore, for the cooldown. */
+
     private final Map<UUID, Long> lastRestore = new HashMap<>();
+    private final Map<UUID, Long> lastBring = new HashMap<>();
 
     public static DragonRecordsData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -54,6 +52,34 @@ public class DragonRecordsData extends SavedData {
         this.setDirty();
     }
 
+    public long getLastBring(UUID playerId) {
+        return this.lastBring.getOrDefault(playerId, Long.MIN_VALUE);
+    }
+
+    public void setLastBring(UUID playerId, long gameTime) {
+        this.lastBring.put(playerId, gameTime);
+        this.setDirty();
+    }
+
+    private static void readTimes(CompoundTag tag, String key, Map<UUID, Long> into) {
+        ListTag list = tag.getList(key, Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag entry = list.getCompound(i);
+            into.put(entry.getUUID("Player"), entry.getLong("Time"));
+        }
+    }
+
+    private static ListTag writeTimes(Map<UUID, Long> times) {
+        ListTag list = new ListTag();
+        times.forEach((player, time) -> {
+            CompoundTag entry = new CompoundTag();
+            entry.putUUID("Player", player);
+            entry.putLong("Time", time);
+            list.add(entry);
+        });
+        return list;
+    }
+
     public static DragonRecordsData load(CompoundTag tag, HolderLookup.Provider provider) {
         DragonRecordsData data = new DragonRecordsData();
         ListTag list = tag.getList("Dragons", Tag.TAG_COMPOUND);
@@ -61,11 +87,8 @@ public class DragonRecordsData extends SavedData {
             DragonRecord record = DragonRecord.load(list.getCompound(i));
             data.records.put(record.dragonId, record);
         }
-        ListTag restores = tag.getList("Restores", Tag.TAG_COMPOUND);
-        for (int i = 0; i < restores.size(); i++) {
-            CompoundTag entry = restores.getCompound(i);
-            data.lastRestore.put(entry.getUUID("Player"), entry.getLong("Time"));
-        }
+        readTimes(tag, "Restores", data.lastRestore);
+        readTimes(tag, "Brings", data.lastBring);
         return data;
     }
 
@@ -74,14 +97,8 @@ public class DragonRecordsData extends SavedData {
         ListTag list = new ListTag();
         for (DragonRecord record : this.records.values()) list.add(record.save());
         tag.put("Dragons", list);
-        ListTag restores = new ListTag();
-        this.lastRestore.forEach((player, time) -> {
-            CompoundTag entry = new CompoundTag();
-            entry.putUUID("Player", player);
-            entry.putLong("Time", time);
-            restores.add(entry);
-        });
-        tag.put("Restores", restores);
+        tag.put("Restores", writeTimes(this.lastRestore));
+        tag.put("Brings", writeTimes(this.lastBring));
         return tag;
     }
 }

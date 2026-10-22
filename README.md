@@ -1,35 +1,66 @@
 # IaF: Control Ur Dragon
 
-Ice and Fire CE için ejderha kontrol, koruma ve kurtarma eklentisi.
+Command, protect and recover your Ice and Fire CE dragons.
+
 Minecraft 1.21.1 · NeoForge 21.1 · Ice and Fire CE 2.1.4
 
-## Şu an çalışanlar (v0.1.0)
+## Features
 
-- **Takip ve yedek:** Sahibi olan her ejderhanın durumu ve tam verisi 30 saniyede bir dünya kaydına yazılır (`data/controlurdragon_records.dat`).
-- **Silinme dedektörü:** Evcil bir ejderha ölmeden dünyadan silinirse loga uyarı ve tam stack trace yazılır. Hangi modun sildiği buradan görülür. Dragon Horn'a alınan ejderhalar "eşyada" sayılır, kayıp sayılmaz.
-- **`kill()` düzeltmesi:** Ice and Fire'da `kill()` canlı ejderhayı iz bırakmadan siliyordu. Artık normal şekilde ölüyor; ceset ve ölüm mesajı oluşuyor. Kapatmak için ayarlardaki `fixSilentKill`.
-- **Komutlar:**
-  - `/cud list` → ejderhaların ve durumları (hayatta, yüklü değil, eşyada, KAYIP, ölü)
-  - `/cud info <uuid>` → ayrıntılar; kayıpsa hangi kodun sildiği
-  - `/cud restore <uuid>` → kayıp ejderhayı son yedekten yanına getirir. Ejderha dünyada hâlâ varsa kopya oluşturmaz. Oyuncular için 30 dakika bekleme süresi var, operatörler beklemez.
-- **Ejderha menüsü (v0.2.0):** Düdük envanterdeyken **V** (Ayarlar → Kontroller'den değiştirilebilir) ya da düdüğe sağ tık. Iron's Spells tarzı çark: önce ejderha, sonra komut.
-  - Otur, Takip et, Serbest, Yanıma gel, İsim ver
-  - Kayıp ejderhada **Geri getir** (30 dk bekleme süresi)
-  - Tuşu basılı tutup ejderhanın üstünde bırakmak da seçer. Sağ tık / Esc geri gider.
+**Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. Pick a dragon, then a category:
 
-Ayarlar: `config/controlurdragon-common.toml`
+| Category | Orders |
+| --- | --- |
+| Movement | Sit, Follow, Wander, Bring dragon |
+| Combat | Attack what you looked at, Stop attacking, Guard area |
+| Behavior | Normal, Defensive (only fights back), Passive (never attacks) |
+| Other | Carry / Drop a creature, Rename |
 
-## Yol haritası
+The wheel does not pause or blur the game, and you can keep walking while it is open. Right click goes back one step.
 
-1. ~~Takip, silinme logu, kill() düzeltmesi, geri getirme komutu~~
-2. ~~Düdük ve çark menü: otur, takip, serbest, yanıma gel, isim ver, geri getir~~
-3. Tek hedefe saldır / seçili grupla saldır
-4. Ejderha başına yapı yıkma aç/kapat (`GriefBreakBlockEvent`) ve davranış ayarları
-5. Diğer modlar için destek (Dragon Care, MineColonies, MCA vb.)
+**Bring dragon** teleports a dragon to you from anywhere, even from unloaded chunks or another dimension. It asks for a second click and has a 30 minute cooldown.
 
-## Geliştirme ortamı (IntelliJ IDEA)
+**Carry** makes the dragon pick up a creature and hold it under its feet. The carried creature takes no damage, so it can't suffocate or die from the fall when it is dropped. Works while riding too.
 
-1. Proje JDK'sı ve **Gradle JVM** 21 olsun (*Settings → Build Tools → Gradle*).
-2. `libs/` klasörüne Ice and Fire ve kütüphane jar'larını koy (bkz. `libs/README.md`).
-3. Gradle panelinde yenile. Senkron bitince sağ üstte **Client** ve **Server** çıkar.
-4. Mod jar'ı: Gradle panelinde `build → build` ya da `gradlew build`. Çıktı `build/libs/` altında.
+**Hotkeys** for every dragon of yours within 128 blocks:
+
+| Key | Order |
+| --- | --- |
+| `G` | Attack the creature you look at |
+| `H` | Follow |
+| `J` | Guard the area you stand in |
+| `N` | Stop attacking |
+| `K` | Carry what you look at / drop it |
+
+All keys can be changed under Options → Controls.
+
+**Better following.** Dragons keep a distance that fits their size, run when they fall behind, fly straight instead of zigzagging, and land next to you.
+
+**Lost dragon detection.** Every tamed dragon is backed up regularly. If one is deleted from the world without dying, the owner gets a chat message with the code that removed it and a button to bring it back. Ice and Fire's `kill()` is also fixed so it no longer silently deletes living dragons.
+
+## Crafting
+
+```
+String     Dragon bone   -
+Dragon bone    -        Dragon bone
+   -       Dragon bone  Iron ingot
+```
+
+## Commands
+
+- `/cud list` lists your dragons and their state
+- `/cud info <uuid>` shows details, including what removed a lost dragon
+- `/cud restore <uuid>` restores a lost dragon from its backup
+
+## Languages
+
+English, Türkçe, Русский, Español, Português, Deutsch.
+
+## Configuration
+
+`config/controlurdragon-common.toml`: cooldowns, guard radius, group range, follow behaviour, chat alerts.
+
+## Building
+
+1. Put the Ice and Fire CE jar and its libraries in `libs/` (see `libs/README.md`).
+2. Run `./gradlew build`. The jar ends up in `build/libs/`.
+3. `./gradlew runClient` starts a development client.

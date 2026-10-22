@@ -11,9 +11,6 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Small text box to give a dragon a name. An empty name removes the name.
- */
 public class RenameDragonScreen extends Screen {
     private final Screen parent;
     private final DragonEntry dragon;
@@ -57,6 +54,10 @@ public class RenameDragonScreen extends Screen {
     @Override
     public void onClose() {
         this.minecraft.setScreen(this.parent);
+    }
+
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
     }
 
     @Override

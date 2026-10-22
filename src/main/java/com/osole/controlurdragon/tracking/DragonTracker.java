@@ -21,21 +21,17 @@ import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
-/**
- * Keeps a record and a backup of every tamed Ice and Fire dragon, and detects dragons that are
- * deleted from the world without dying (the bug that made dragons vanish).
- */
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 @EventBusSubscriber(modid = ControlUrDragon.MODID)
 public final class DragonTracker {
-    /** Class names that mean "the dragon was put into an item", not lost. */
+    public static final String TEST_PREFIX = "TEST_";
+    private static final Set<UUID> TEST_DELETES = ConcurrentHashMap.newKeySet();
     private static final String[] STORING_CALLERS = {"DragonHornItem"};
 
-    /** Prefix of {@link DragonRecord#lostReason} for dragons removed with the test delete button. */
-    public static final String TEST_PREFIX = "TEST_";
-    private static final java.util.Set<java.util.UUID> TEST_DELETES = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    /** Call right before discarding a dragon on purpose for testing. */
-    public static void markTestDelete(java.util.UUID dragon) {
+    public static void markTestDelete(UUID dragon) {
         TEST_DELETES.add(dragon);
     }
 
@@ -46,7 +42,6 @@ public final class DragonTracker {
         return entity instanceof DragonBaseEntity dragon && dragon.isTame() && dragon.getOwnerUUID() != null;
     }
 
-    /** Copies the dragon's current data and position into its record. */
     private static DragonRecord update(ServerLevel level, DragonBaseEntity dragon, boolean takeSnapshot) {
         DragonRecordsData data = DragonRecordsData.get(level.getServer());
         DragonRecord record = data.getOrCreate(dragon.getUUID());
@@ -85,7 +80,6 @@ public final class DragonTracker {
         if (record.state != DragonRecord.State.DEAD) record.state = DragonRecord.State.ALIVE;
     }
 
-    // LOWEST + not receiving cancelled events: only counts deaths that really happen.
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onDeath(LivingDeathEvent event) {
         if (!(event.getEntity().level() instanceof ServerLevel level) || !isTracked(event.getEntity())) return;
@@ -110,13 +104,11 @@ public final class DragonTracker {
             return;
         }
 
-        // The dragon is being destroyed. A corpse being cleaned up or a real death is fine.
         if (alreadyDead || dragon.isModelDead() || dragon.isDeadOrDying()) {
             update(level, dragon, false).state = DragonRecord.State.DEAD;
             return;
         }
 
-        // Deleted while alive: find out who did it.
         Throwable trace = new Throwable("Tamed dragon removed without dying");
         String summary = summarize(trace);
         boolean stored = false;
@@ -137,7 +129,6 @@ public final class DragonTracker {
         if (Config.CHAT_REMOVAL_ALERTS.get() && !stored) alertOwner(level, record, reason);
     }
 
-    /** Tells the owner in chat that a dragon vanished, why, and gives a clickable restore. */
     private static void alertOwner(ServerLevel level, DragonRecord record, Entity.RemovalReason reason) {
         ServerPlayer owner = level.getServer().getPlayerList().getPlayer(record.ownerId);
         if (owner == null) return;
@@ -149,7 +140,6 @@ public final class DragonTracker {
                 .withStyle(ChatFormatting.RED);
         owner.sendSystemMessage(message);
 
-        // The first few callers, the rest on hover.
         MutableComponent where = Component.translatable("controlurdragon.alert.trace").withStyle(ChatFormatting.GRAY);
         for (int i = 0; i < Math.min(4, lines.length); i++) {
             where.append(Component.literal("\n  " + lines[i]).withStyle(ChatFormatting.DARK_GRAY));
@@ -164,7 +154,6 @@ public final class DragonTracker {
                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(command)))));
     }
 
-    /** Keeps the interesting stack frames: who called remove(), skipping Minecraft/NeoForge internals and this mod. */
     private static String summarize(Throwable trace) {
         StringBuilder builder = new StringBuilder();
         int kept = 0;

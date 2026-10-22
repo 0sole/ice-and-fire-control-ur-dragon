@@ -8,13 +8,6 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.EnumSet;
 
-/**
- * Replaces Ice and Fire's ground follow (DragonAIEscortGoal).
- * - stops at a comfortable distance instead of walking into the owner
- * - runs when far behind
- * - re-plans the route twice a second instead of every few blocks the owner moves
- * - takes off when the owner is far away, high up or flying
- */
 public class CudFollowGoal extends Goal {
     private final DragonBaseEntity dragon;
     private int repathTicks;
@@ -69,7 +62,8 @@ public class CudFollowGoal extends Goal {
 
         float keep = DragonFollowLogic.followDistance(this.dragon);
         float distance = this.dragon.distanceTo(owner);
-        boolean shouldFly = distance > Math.max(32F, keep * 3F) || owner.getY() - this.dragon.getY() > 8 || owner.isFallFlying();
+        boolean shouldFly = distance > Math.max(32F, keep * 3F) || owner.getY() - this.dragon.getY() > 8 || owner.isFallFlying()
+                || DragonCarry.isCarrying(this.dragon);
         if (shouldFly && this.dragon.isAllowedToTriggerFlight()) {
             this.dragon.getNavigation().stop();
             this.dragon.setHovering(true);

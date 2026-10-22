@@ -23,11 +23,6 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * /cud list            - your dragons and their state
- * /cud info <uuid>     - details, including which mod removed a lost dragon
- * /cud restore <uuid>  - bring a lost dragon back from its backup
- */
 @EventBusSubscriber(modid = ControlUrDragon.MODID)
 public final class CudCommands {
     private CudCommands() {
@@ -62,7 +57,7 @@ public final class CudCommands {
                 .append(Component.literal(" [" + record.stage + "] ").withStyle(ChatFormatting.GRAY))
                 .append(Component.translatable("controlurdragon.state." + record.state.name().toLowerCase()).withStyle(stateColor(record.state)))
                 .append(Component.literal(String.format(" %s %.0f %.0f %.0f", record.dimension, record.x, record.y, record.z)).withStyle(ChatFormatting.DARK_GRAY));
-        // Click to get the info command; hover shows the id.
+
         line.withStyle(Style.EMPTY
                 .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/cud info " + id))
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(id))));

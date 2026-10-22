@@ -1,5 +1,6 @@
 package com.osole.controlurdragon.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -8,10 +9,13 @@ import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.osole.controlurdragon.network.DragonActionPayload;
+import com.osole.controlurdragon.network.DragonActionPayload.Action;
 import com.osole.controlurdragon.network.DragonEntry;
 import com.osole.controlurdragon.network.DragonListPayload;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Options;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -20,37 +24,66 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/**
- * Iron's Spells style wheel. First ring: your dragons. Pick one (click, or release the menu key over it)
- * and the wheel switches to that dragon's orders. Right click or Esc goes back.
- */
 public class DragonWheelScreen extends Screen {
-    private static final float INNER = 42F;
-    private static final float OUTER = 110F;
+    private static final float INNER = 24F;
+    private static final float OUTER = 70F;
+    private static final float LABEL_WIDTH = 56F;
+    private static final float LABEL_SCALE = 0.8F;
 
-    private static final int COLOR_BASE = 0xA0141414;
-    private static final int COLOR_HOVER = 0xD0C86414;
-    private static final int COLOR_DISABLED = 0x80141414;
-    private static final int COLOR_LOST = 0xA0701818;
-    private static final int COLOR_DANGER = 0xB0601010;
+    private static final int COLOR_BASE = 0x90141414;
+    private static final int COLOR_HOVER = 0xC8C86414;
+    private static final int COLOR_DISABLED = 0x60141414;
+    private static final int COLOR_LOST = 0x90701818;
+    private static final int COLOR_DANGER = 0xA0601010;
+    private static final int COLOR_CATEGORY = 0x90203048;
 
-    /** One slice of the wheel. action == null means "back". */
-    private record Option(DragonActionPayload.Action action, Component label, boolean enabled) {
+    private enum Category {
+        MOVEMENT, COMBAT, BEHAVIOR, OTHER
     }
 
+    private enum Kind {
+        ACTION, CATEGORY, BACK
+    }
+
+    private record Option(Kind kind, Action action, int value, Category category, Component label,
+                          boolean enabled, boolean active, boolean danger) {
+        static Option action(Action action, int value, Component label, boolean enabled) {
+            return new Option(Kind.ACTION, action, value, null, label, enabled, false, false);
+        }
+
+        static Option category(Category category) {
+            return new Option(Kind.CATEGORY, null, 0, category,
+                    Component.translatable("controlurdragon.category." + category.name().toLowerCase(Locale.ROOT)), true, false, false);
+        }
+
+        static Option back() {
+            return new Option(Kind.BACK, null, 0, null, Component.translatable("controlurdragon.action.back"), true, false, false);
+        }
+
+        Option asActive() {
+            return new Option(this.kind, this.action, this.value, this.category, this.label, false, true, this.danger);
+        }
+
+        Option asDanger() {
+            return new Option(this.kind, this.action, this.value, this.category, this.label, this.enabled, this.active, true);
+        }
+    }
+
+    private final LivingEntity target;
     private List<DragonEntry> dragons = new ArrayList<>();
     private long restoreCooldownSeconds;
+    private long bringCooldownSeconds;
     private boolean debug;
     private DragonEntry selected;
+    private Category category;
+    private Action confirming;
     private int hovered = -1;
-    /** What the player was looking at when the menu opened; the "attack" option targets it. */
-    private final LivingEntity target;
-    /** The delete button needs two clicks. */
-    private boolean confirmDelete;
 
     public DragonWheelScreen(DragonListPayload data, LivingEntity target) {
         super(Component.translatable("controlurdragon.menu.title"));
@@ -61,11 +94,13 @@ public class DragonWheelScreen extends Screen {
     public void setData(DragonListPayload data) {
         this.dragons = new ArrayList<>(data.dragons());
         this.restoreCooldownSeconds = data.restoreCooldownSeconds();
+        this.bringCooldownSeconds = data.bringCooldownSeconds();
         this.debug = data.debug();
         if (this.selected != null) {
             DragonEntry current = null;
             for (DragonEntry entry : this.dragons) if (entry.id().equals(this.selected.id())) current = entry;
             this.selected = current;
+            if (current == null) this.category = null;
         }
     }
 
@@ -74,77 +109,160 @@ public class DragonWheelScreen extends Screen {
         return false;
     }
 
-    // ---- what the wheel contains -------------------------------------------------------------
+    @Override
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    }
 
-    private List<Option> commandOptions(DragonEntry dragon) {
-        List<Option> options = new ArrayList<>();
-        if (dragon.loaded()) {
-            options.add(new Option(DragonActionPayload.Action.SIT, Component.translatable("controlurdragon.action.sit"), dragon.command() != 1));
-            options.add(new Option(DragonActionPayload.Action.FOLLOW, Component.translatable("controlurdragon.action.follow"), dragon.command() != 2));
-            options.add(new Option(DragonActionPayload.Action.WANDER, Component.translatable("controlurdragon.action.wander"), dragon.command() != 0 || dragon.guarding()));
-            options.add(new Option(DragonActionPayload.Action.COME, Component.translatable("controlurdragon.action.come"), dragon.distance() >= 0));
-            if (this.target != null) {
-                options.add(new Option(DragonActionPayload.Action.ATTACK,
-                        Component.translatable("controlurdragon.action.attack", shorten(this.target.getName().getString(), 10)),
-                        this.target.isAlive() && dragon.distance() >= 0));
+    @Override
+    public void tick() {
+        super.tick();
+        long window = this.minecraft.getWindow().getWindow();
+        Options options = this.minecraft.options;
+        for (KeyMapping key : new KeyMapping[]{options.keyUp, options.keyDown, options.keyLeft, options.keyRight,
+                options.keyJump, options.keySprint, options.keyShift}) {
+            InputConstants.Key bound = key.getKey();
+            boolean down;
+            if (bound.getType() == InputConstants.Type.MOUSE) {
+                down = GLFW.glfwGetMouseButton(window, bound.getValue()) == GLFW.GLFW_PRESS;
+            } else {
+                down = bound.getValue() != InputConstants.UNKNOWN.getValue() && InputConstants.isKeyDown(window, bound.getValue());
             }
-            options.add(new Option(DragonActionPayload.Action.GUARD, Component.translatable("controlurdragon.action.guard"), dragon.distance() >= 0));
-            options.add(new Option(DragonActionPayload.Action.RENAME, Component.translatable("controlurdragon.action.rename"), true));
-            if (this.debug) {
-                options.add(new Option(DragonActionPayload.Action.DELETE, Component.translatable(this.confirmDelete
-                        ? "controlurdragon.action.delete.confirm" : "controlurdragon.action.delete"), true));
-            }
-        } else if (dragon.state() == DragonRecord.State.LOST) {
-            options.add(new Option(DragonActionPayload.Action.RESTORE, Component.translatable("controlurdragon.action.restore"), this.restoreCooldownSeconds == 0));
+            key.setDown(down);
         }
-        options.add(new Option(null, Component.translatable("controlurdragon.action.back"), true));
-        return options;
+    }
+
+    private Component withCooldown(String key, long seconds) {
+        Component label = Component.translatable(key);
+        return seconds > 0 ? Component.translatable("controlurdragon.menu.with_cooldown", label, seconds / 60 + 1) : label;
+    }
+
+    private Component confirmable(Action action, Component label) {
+        return this.confirming == action ? Component.translatable("controlurdragon.menu.confirm") : label;
+    }
+
+    private List<Option> options() {
+        if (this.selected == null) return null;
+        DragonEntry dragon = this.selected;
+        List<Option> list = new ArrayList<>();
+        if (!dragon.loaded()) {
+            if (dragon.state() == DragonRecord.State.LOST) {
+                list.add(Option.action(Action.RESTORE, 0, confirmable(Action.RESTORE,
+                        this.withCooldown("controlurdragon.action.restore", this.restoreCooldownSeconds)), this.restoreCooldownSeconds == 0));
+            } else {
+                list.add(Option.action(Action.BRING, 0, confirmable(Action.BRING,
+                                this.withCooldown("controlurdragon.action.bring", this.bringCooldownSeconds)),
+                        this.bringCooldownSeconds == 0 && dragon.state() != DragonRecord.State.STORED));
+            }
+            list.add(Option.back());
+            return list;
+        }
+        if (this.category == null) {
+            for (Category c : Category.values()) list.add(Option.category(c));
+            list.add(Option.back());
+            return list;
+        }
+        boolean hasTarget = this.target != null && this.target.isAlive();
+        String targetName = hasTarget ? shorten(this.target.getName().getString(), 12) : "";
+        switch (this.category) {
+            case MOVEMENT -> {
+                list.add(Option.action(Action.SIT, 0, Component.translatable("controlurdragon.action.sit"), dragon.command() != 1));
+                list.add(Option.action(Action.FOLLOW, 0, Component.translatable("controlurdragon.action.follow"), dragon.command() != 2));
+                list.add(Option.action(Action.WANDER, 0, Component.translatable("controlurdragon.action.wander"),
+                        dragon.command() != 0 || dragon.guarding()));
+                list.add(Option.action(Action.BRING, 0, confirmable(Action.BRING,
+                        this.withCooldown("controlurdragon.action.bring", this.bringCooldownSeconds)), this.bringCooldownSeconds == 0));
+            }
+            case COMBAT -> {
+                list.add(Option.action(Action.ATTACK, hasTarget ? this.target.getId() : -1, hasTarget
+                        ? Component.translatable("controlurdragon.action.attack", targetName)
+                        : Component.translatable("controlurdragon.action.attack.none"), hasTarget && dragon.distance() >= 0));
+                list.add(Option.action(Action.STOP, 0, Component.translatable("controlurdragon.action.stop"), true));
+                list.add(Option.action(Action.GUARD, 0, Component.translatable("controlurdragon.action.guard"), dragon.distance() >= 0));
+            }
+            case BEHAVIOR -> {
+                String[] stances = {"normal", "defensive", "passive"};
+                for (int i = 0; i < stances.length; i++) {
+                    Option option = Option.action(Action.STANCE, i, Component.translatable("controlurdragon.stance." + stances[i]), true);
+                    list.add(dragon.stance() == i ? option.asActive() : option);
+                }
+            }
+            case OTHER -> {
+                if (!dragon.carrying().isEmpty()) {
+                    list.add(Option.action(Action.DROP, 0, Component.translatable("controlurdragon.action.drop",
+                            shorten(dragon.carrying(), 12)), true));
+                } else {
+                    list.add(Option.action(Action.CARRY, hasTarget ? this.target.getId() : -1, hasTarget
+                            ? Component.translatable("controlurdragon.action.carry", targetName)
+                            : Component.translatable("controlurdragon.action.carry.none"), hasTarget && dragon.distance() >= 0));
+                }
+                list.add(Option.action(Action.RENAME, 0, Component.translatable("controlurdragon.action.rename"), true));
+                if (this.debug) {
+                    list.add(Option.action(Action.DELETE, 0, confirmable(Action.DELETE,
+                            Component.translatable("controlurdragon.action.delete")), true).asDanger());
+                }
+            }
+        }
+        list.add(Option.back());
+        return list;
     }
 
     private int sliceCount() {
-        return this.selected == null ? this.dragons.size() : this.commandOptions(this.selected).size();
+        List<Option> options = this.options();
+        return options == null ? this.dragons.size() : options.size();
     }
-
-    // ---- input --------------------------------------------------------------------------------
 
     private int sliceAt(double mouseX, double mouseY, int count) {
         if (count == 0) return -1;
         double dx = mouseX - this.width / 2.0;
         double dy = mouseY - this.height / 2.0;
         double distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < INNER * 0.6 || distance > OUTER * 1.6) return -1;
-        // 0 = straight up, clockwise
+        if (distance < INNER * 0.5 || distance > OUTER * 1.8) return -1;
         double angle = Math.atan2(dy, dx) + Math.PI / 2;
         if (angle < 0) angle += Math.PI * 2;
         return Mth.clamp((int) (angle / (Math.PI * 2 / count)), 0, count - 1);
     }
 
+    private void goBack() {
+        this.confirming = null;
+        if (this.category != null) this.category = null;
+        else if (this.selected != null) this.selected = null;
+        else this.onClose();
+    }
+
     private void choose(int index) {
         if (index < 0) return;
-        if (this.selected == null) {
-            if (index < this.dragons.size()) this.selected = this.dragons.get(index);
+        List<Option> options = this.options();
+        if (options == null) {
+            if (index < this.dragons.size()) {
+                this.selected = this.dragons.get(index);
+                this.category = null;
+                this.confirming = null;
+            }
             return;
         }
-        List<Option> options = this.commandOptions(this.selected);
         if (index >= options.size()) return;
         Option option = options.get(index);
-        if (option.action() == null) {
-            this.selected = null;
-            this.confirmDelete = false;
-            return;
+        switch (option.kind()) {
+            case BACK -> this.goBack();
+            case CATEGORY -> {
+                this.category = option.category();
+                this.confirming = null;
+            }
+            case ACTION -> {
+                if (!option.enabled()) return;
+                Action action = option.action();
+                if (action == Action.RENAME) {
+                    this.minecraft.setScreen(new RenameDragonScreen(this, this.selected));
+                    return;
+                }
+                if ((action == Action.BRING || action == Action.RESTORE || action == Action.DELETE) && this.confirming != action) {
+                    this.confirming = action;
+                    return;
+                }
+                PacketDistributor.sendToServer(new DragonActionPayload(this.selected.id(), action, "", option.value()));
+                this.onClose();
+            }
         }
-        if (!option.enabled()) return;
-        if (option.action() == DragonActionPayload.Action.RENAME) {
-            this.minecraft.setScreen(new RenameDragonScreen(this, this.selected));
-            return;
-        }
-        if (option.action() == DragonActionPayload.Action.DELETE && !this.confirmDelete) {
-            this.confirmDelete = true;
-            return;
-        }
-        int targetId = option.action() == DragonActionPayload.Action.ATTACK && this.target != null ? this.target.getId() : -1;
-        PacketDistributor.sendToServer(new DragonActionPayload(this.selected.id(), option.action(), "", targetId));
-        this.onClose();
     }
 
     @Override
@@ -154,9 +272,7 @@ public class DragonWheelScreen extends Screen {
             return true;
         }
         if (button == 1) {
-            this.confirmDelete = false;
-            if (this.selected != null) this.selected = null;
-            else this.onClose();
+            this.goBack();
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
@@ -164,7 +280,6 @@ public class DragonWheelScreen extends Screen {
 
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-        // Iron's Spells feel: hold the key, point at a dragon, release to pick it.
         if (ClientEvents.OPEN_MENU.matches(keyCode, scanCode) && this.selected == null && this.hovered >= 0) {
             this.choose(this.hovered);
             return true;
@@ -172,25 +287,27 @@ public class DragonWheelScreen extends Screen {
         return super.keyReleased(keyCode, scanCode, modifiers);
     }
 
-    // ---- drawing ------------------------------------------------------------------------------
-
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
         float cx = this.width / 2F;
         float cy = this.height / 2F;
-        int count = this.sliceCount();
+        List<Option> options = this.options();
+        int count = options == null ? this.dragons.size() : options.size();
         this.hovered = this.sliceAt(mouseX, mouseY, count);
 
-        graphics.drawCenteredString(this.font, this.selected == null ? this.title
-                : Component.literal(this.selected.name()).withStyle(ChatFormatting.GOLD), (int) cx, (int) (cy - OUTER - 24), 0xFFFFFF);
+        Component heading = this.selected == null ? this.title : Component.literal(this.selected.name()).withStyle(ChatFormatting.GOLD);
+        if (this.category != null) {
+            heading = Component.empty().append(heading).append(Component.literal(" / ").withStyle(ChatFormatting.GRAY))
+                    .append(Component.translatable("controlurdragon.category." + this.category.name().toLowerCase(Locale.ROOT)));
+        }
+        graphics.drawCenteredString(this.font, heading, (int) cx, (int) (cy - OUTER - 14), 0xFFFFFF);
 
         if (count == 0) {
             graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.empty"), (int) cx, (int) cy - 4, 0xAAAAAA);
             return;
         }
 
-        // Slices
         graphics.flush();
         Matrix4f matrix = graphics.pose().last().pose();
         RenderSystem.enableBlend();
@@ -198,14 +315,14 @@ public class DragonWheelScreen extends Screen {
         RenderSystem.disableCull();
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         float slice = (float) (Math.PI * 2 / count);
-        float gap = count > 1 ? 0.02F : 0F;
-        List<Option> options = this.selected == null ? null : this.commandOptions(this.selected);
+        float gap = count > 1 ? 0.025F : 0F;
         for (int i = 0; i < count; i++) {
             int color;
             if (i == this.hovered) color = COLOR_HOVER;
-            else if (options != null && options.get(i).action() == DragonActionPayload.Action.DELETE) color = COLOR_DANGER;
-            else if (options != null) color = options.get(i).enabled() ? COLOR_BASE : COLOR_DISABLED;
-            else color = this.dragons.get(i).state() == DragonRecord.State.LOST ? COLOR_LOST : COLOR_BASE;
+            else if (options == null) color = this.dragons.get(i).state() == DragonRecord.State.LOST ? COLOR_LOST : COLOR_BASE;
+            else if (options.get(i).danger()) color = COLOR_DANGER;
+            else if (options.get(i).kind() == Kind.CATEGORY) color = COLOR_CATEGORY;
+            else color = options.get(i).enabled() || options.get(i).active() ? COLOR_BASE : COLOR_DISABLED;
             float start = i * slice - (float) Math.PI / 2 + gap;
             float end = (i + 1) * slice - (float) Math.PI / 2 - gap;
             drawRingSector(matrix, cx, cy, INNER, OUTER, start, end, color);
@@ -213,47 +330,53 @@ public class DragonWheelScreen extends Screen {
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
 
-        // Labels
         float labelRadius = (INNER + OUTER) / 2F;
         for (int i = 0; i < count; i++) {
             float mid = (i + 0.5F) * slice - (float) Math.PI / 2;
-            int x = (int) (cx + Mth.cos(mid) * labelRadius);
-            int y = (int) (cy + Mth.sin(mid) * labelRadius);
+            float x = cx + Mth.cos(mid) * labelRadius;
+            float y = cy + Mth.sin(mid) * labelRadius;
             if (options != null) {
                 Option option = options.get(i);
-                graphics.drawCenteredString(this.font, option.label(), x, y - 4, option.enabled() ? 0xFFFFFF : 0x777777);
+                int color = option.active() ? 0x77FF77 : option.enabled() ? 0xFFFFFF : 0x777777;
+                this.drawLabel(graphics, option.label(), x, y - 3, color);
             } else {
                 DragonEntry dragon = this.dragons.get(i);
-                graphics.drawCenteredString(this.font, shorten(dragon.name(), 14), x, y - 9, typeColor(dragon.type()));
-                graphics.drawCenteredString(this.font, stateLine(dragon), x, y + 2, 0xBBBBBB);
+                this.drawLabel(graphics, Component.literal(shorten(dragon.name(), 14)), x, y - 7, typeColor(dragon.type()));
+                this.drawLabel(graphics, stateLine(dragon), x, y + 2, 0xBBBBBB);
             }
         }
 
-        // Centre: details of what the mouse points at
-        this.renderCentre(graphics, (int) cx, (int) cy, options);
+        this.renderInfo(graphics, (int) cx, (int) (cy + OUTER + 6), options);
     }
 
-    private void renderCentre(GuiGraphics graphics, int cx, int cy, List<Option> options) {
-        if (options == null) {
-            if (this.hovered < 0) {
-                graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.pick_dragon"), cx, cy - 4, 0xAAAAAA);
-                return;
-            }
-            DragonEntry dragon = this.dragons.get(this.hovered);
-            graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.stage", dragon.stage()), cx, cy - 9, 0xFFFFFF);
-            graphics.drawCenteredString(this.font, distanceText(dragon), cx, cy + 2, 0xBBBBBB);
-        } else {
-            DragonEntry dragon = this.selected;
-            graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.state." + dragon.state().name().toLowerCase()), cx, cy - 9, 0xFFFFFF);
-            if (dragon.state() == DragonRecord.State.LOST && this.restoreCooldownSeconds > 0)
-                graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.cooldown", this.restoreCooldownSeconds / 60 + 1), cx, cy + 2, 0xFF7777);
-            else
-                graphics.drawCenteredString(this.font, distanceText(dragon), cx, cy + 2, 0xBBBBBB);
+    private void drawLabel(GuiGraphics graphics, Component text, float x, float y, int color) {
+        int width = this.font.width(text);
+        float scale = width == 0 ? LABEL_SCALE : Math.min(LABEL_SCALE, LABEL_WIDTH / width);
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(scale, scale, 1F);
+        graphics.drawCenteredString(this.font, text, 0, 0, color);
+        graphics.pose().popPose();
+    }
+
+    private void renderInfo(GuiGraphics graphics, int cx, int y, List<Option> options) {
+        DragonEntry dragon = options == null ? (this.hovered >= 0 ? this.dragons.get(this.hovered) : null) : this.selected;
+        if (dragon == null) {
+            graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.pick_dragon"), cx, y, 0xAAAAAA);
+            return;
+        }
+        Component first = Component.translatable("controlurdragon.menu.stage", dragon.stage()).append(" · ").append(distanceText(dragon));
+        graphics.drawCenteredString(this.font, first, cx, y, 0xDDDDDD);
+        if (dragon.loaded()) {
+            Component second = stateLine(dragon).copy().append(" · ").append(Component.translatable(
+                    "controlurdragon.stance." + new String[]{"normal", "defensive", "passive"}[Mth.clamp(dragon.stance(), 0, 2)]));
+            graphics.drawCenteredString(this.font, second, cx, y + 10, 0xAAAAAA);
         }
     }
 
     private static Component stateLine(DragonEntry dragon) {
         if (dragon.loaded()) {
+            if (!dragon.carrying().isEmpty()) return Component.translatable("controlurdragon.command.carrying");
             if (dragon.guarding()) return Component.translatable("controlurdragon.command.guarding");
             String key = switch (dragon.command()) {
                 case 1 -> "controlurdragon.command.sitting";
@@ -262,7 +385,7 @@ public class DragonWheelScreen extends Screen {
             };
             return Component.translatable(key);
         }
-        return Component.translatable("controlurdragon.state." + dragon.state().name().toLowerCase());
+        return Component.translatable("controlurdragon.state." + dragon.state().name().toLowerCase(Locale.ROOT));
     }
 
     private static Component distanceText(DragonEntry dragon) {

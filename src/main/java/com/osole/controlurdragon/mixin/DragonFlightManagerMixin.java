@@ -11,10 +11,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * While following or guarding, a flying dragon heads for a steady point instead of Ice and Fire's
- * random "block in view near the owner", which made it fly in zigzags.
- */
 @Mixin(value = IafDragonFlightManager.class, remap = false)
 public abstract class DragonFlightManagerMixin {
     @Shadow

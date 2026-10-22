@@ -12,9 +12,6 @@ import net.minecraft.world.entity.EntityType;
 
 import java.util.Optional;
 
-/**
- * Recreates a LOST dragon from its last backup, next to a player.
- */
 public final class DragonRestorer {
     private DragonRestorer() {
     }
@@ -23,7 +20,6 @@ public final class DragonRestorer {
         return Config.RESTORE_COOLDOWN_MINUTES.get() * 60L * 20L;
     }
 
-    /** Seconds until this player may restore again (0 = now). Operators have no cooldown. */
     public static long cooldownSecondsLeft(ServerPlayer player) {
         if (player.hasPermissions(2)) return 0;
         long last = DragonRecordsData.get(player.server).getLastRestore(player.getUUID());
@@ -32,14 +28,9 @@ public final class DragonRestorer {
         return Math.max(0, (left + 19) / 20);
     }
 
-    /**
-     * Checks permission and cooldown, then restores. Used by the command and the menu.
-     *
-     * @return null on success, otherwise the reason it failed
-     */
     public static Component tryRestore(ServerPlayer player, DragonRecord record) {
         boolean operator = player.hasPermissions(2);
-        // Dragons removed with the test delete button come back free, so testing does not use up the cooldown.
+
         boolean testDelete = record.lostReason != null && record.lostReason.startsWith(DragonTracker.TEST_PREFIX);
         if (!operator && !testDelete) {
             if (!Config.OWNERS_CAN_RESTORE.get() || !player.getUUID().equals(record.ownerId))
@@ -54,14 +45,12 @@ public final class DragonRestorer {
         return error;
     }
 
-    /** Restores without permission or cooldown checks. @return null on success, otherwise the reason it failed. */
     public static Component restore(ServerPlayer player, DragonRecord record) {
         if (record.state != DragonRecord.State.LOST)
             return Component.translatable("controlurdragon.restore.not_lost", record.state.name());
         if (record.snapshot.isEmpty())
             return Component.translatable("controlurdragon.restore.no_snapshot");
 
-        // Never create a second copy: refuse if the dragon still exists anywhere.
         for (ServerLevel level : player.server.getAllLevels()) {
             if (level.getEntity(record.dragonId) != null)
                 return Component.translatable("controlurdragon.restore.still_exists");

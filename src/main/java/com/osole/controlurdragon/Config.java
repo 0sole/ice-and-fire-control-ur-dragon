@@ -28,6 +28,10 @@ public final class Config {
             .comment("Cooldown per player between two restores, in minutes. Operators ignore it.")
             .defineInRange("restoreCooldownMinutes", 30, 0, 1440);
 
+    public static final ModConfigSpec.IntValue BRING_COOLDOWN_MINUTES = BUILDER
+            .comment("Cooldown per player for the 'Bring dragon' order, which teleports a dragon to you from anywhere. 0 disables it.")
+            .defineInRange("bringCooldownMinutes", 30, 0, 1440);
+
     public static final ModConfigSpec.BooleanValue IMPROVED_FOLLOW = BUILDER
             .comment("Replace Ice and Fire's follow behaviour: dragons keep a distance from you, run/fly at their own speed",
                     "and land next to you instead of trying to stand on top of you.")

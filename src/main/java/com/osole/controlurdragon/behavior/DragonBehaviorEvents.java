@@ -5,6 +5,7 @@ import com.iafenvoy.iceandfire.entity.ai.DragonAIEscortGoal;
 import com.osole.controlurdragon.Config;
 import com.osole.controlurdragon.ControlUrDragon;
 import com.osole.controlurdragon.mixin.MobAccessor;
+import com.osole.controlurdragon.server.DragonBringer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -15,14 +16,15 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.Comparator;
 import java.util.UUID;
 
-/**
- * Installs the better follow goal and keeps attack / guard orders going.
- */
 @EventBusSubscriber(modid = ControlUrDragon.MODID)
 public final class DragonBehaviorEvents {
     private DragonBehaviorEvents() {
@@ -33,35 +35,57 @@ public final class DragonBehaviorEvents {
         if (event.getLevel().isClientSide() || !(event.getEntity() instanceof DragonBaseEntity dragon)) return;
         GoalSelector goals = ((MobAccessor) dragon).controlurdragon$getGoalSelector();
         goals.removeAllGoals(goal -> goal instanceof DragonAIEscortGoal || goal instanceof CudFollowGoal);
-        // Ice and Fire's escort goal has priority 4 as well. When the config option is off our goal simply never runs,
-        // so put the old goal back in that case.
         if (Config.IMPROVED_FOLLOW.get()) goals.addGoal(4, new CudFollowGoal(dragon));
         else goals.addGoal(4, new DragonAIEscortGoal(dragon, 1.0D));
     }
 
     @SubscribeEvent
-    public static void onTick(EntityTickEvent.Post event) {
-        if (!(event.getEntity() instanceof DragonBaseEntity dragon) || !(dragon.level() instanceof ServerLevel level)) return;
-        if ((level.getGameTime() + dragon.getId()) % 10 != 0) return;
-        if (!dragon.isTame() || dragon.isModelDead() || dragon.isVehicle()) return;
+    public static void onLeave(EntityLeaveLevelEvent event) {
+        if (!event.getLevel().isClientSide() && event.getEntity() instanceof DragonBaseEntity dragon) DragonCarry.forget(dragon);
+    }
 
-        // ---- ordered attack ----
+    @SubscribeEvent
+    public static void onChangeTarget(LivingChangeTargetEvent event) {
+        if (!(event.getEntity() instanceof DragonBaseEntity dragon) || dragon.level().isClientSide() || !dragon.isTame()) return;
+        if (!DragonOrders.allowsTarget(dragon, event.getNewAboutToBeSetTarget())) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (!event.getEntity().level().isClientSide() && DragonCarry.isProtected(event.getEntity())) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        DragonBringer.tick(event.getServer());
+    }
+
+    @SubscribeEvent
+    public static void onTick(EntityTickEvent.Post event) {
+        Entity entity = event.getEntity();
+        if (!(entity.level() instanceof ServerLevel level)) return;
+        DragonCarry.tickFalling(entity);
+        if (!(entity instanceof DragonBaseEntity dragon) || !dragon.isTame()) return;
+
+        DragonCarry.tickDragon(dragon, level);
+
+        if ((level.getGameTime() + dragon.getId()) % 10 != 0) return;
+        if (dragon.isModelDead() || dragon.isVehicle()) return;
+
         UUID targetId = DragonOrders.getAttackOrder(dragon);
         if (targetId != null) {
             Entity target = level.getEntity(targetId);
             if (target instanceof LivingEntity living && living.isAlive() && DragonOrders.canAttack(dragon, living)) {
-                if (dragon.getTarget() != living) dragon.setTarget(living);
+                if (dragon.getTarget() != living) DragonOrders.setOrderedTarget(dragon, living);
                 return;
             }
             DragonOrders.clearAttackOrder(dragon);
             dragon.setTarget(null);
         }
 
-        // ---- guard area ----
         DragonOrders.GuardArea guard = DragonOrders.getGuard(dragon);
         if (guard == null) return;
         if (dragon.getCommand() != 0) {
-            // Owner gave another command some other way (e.g. right-click with the staff): stop guarding.
             DragonOrders.clearGuard(dragon);
             return;
         }
@@ -74,20 +98,19 @@ public final class DragonBehaviorEvents {
             dragon.setTarget(null);
             current = null;
         }
-        if (current == null) {
-            AABB box = new AABB(center).inflate(radius);
-            LivingEntity enemy = level.getEntitiesOfClass(LivingEntity.class, box,
-                            e -> e instanceof Enemy && e.isAlive() && DragonOrders.canAttack(dragon, e)
-                                    && e.distanceToSqr(center.getCenter()) <= radius * radius)
-                    .stream().min(Comparator.comparingDouble(dragon::distanceToSqr)).orElse(null);
-            if (enemy != null) {
-                dragon.setTarget(enemy);
-                return;
-            }
-            // Nothing to fight: walk back if it wandered too far. Flying dragons are steered by the flight mixin.
-            if (!dragon.isFlying() && !dragon.isHovering() && dragon.distanceToSqr(center.getCenter()) > radius * radius * 0.5) {
-                dragon.getNavigation().moveTo(center.getX() + 0.5, center.getY(), center.getZ() + 0.5, 1.2D);
-            }
+        if (current != null) return;
+
+        AABB box = new AABB(center).inflate(radius);
+        LivingEntity enemy = level.getEntitiesOfClass(LivingEntity.class, box,
+                        e -> e instanceof Enemy && e.isAlive() && DragonOrders.canAttack(dragon, e)
+                                && e.distanceToSqr(center.getCenter()) <= radius * radius)
+                .stream().min(Comparator.comparingDouble(dragon::distanceToSqr)).orElse(null);
+        if (enemy != null) {
+            DragonOrders.setOrderedTarget(dragon, enemy);
+            return;
+        }
+        if (!dragon.isFlying() && !dragon.isHovering() && dragon.distanceToSqr(center.getCenter()) > radius * radius * 0.5) {
+            dragon.getNavigation().moveTo(center.getX() + 0.5, center.getY(), center.getZ() + 0.5, 1.2D);
         }
     }
 }
