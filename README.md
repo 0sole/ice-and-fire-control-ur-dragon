@@ -4,6 +4,24 @@ Command, protect and recover your Ice and Fire CE dragons.
 
 Minecraft 1.21.1 · NeoForge 21.1 · Ice and Fire CE 2.1.4
 
+## Why this mod exists
+
+I'm 0sole. I was playing a big modpack with two tamed Ice and Fire dragons, one of them stage 4. We raided a dark forest camp full of barbarians, with Herobrine cultists casting blood magic around them. I turned around and my stage 4 dragon was just gone. Not dead, no corpse, no death message. A bit later the second one vanished the same way. I went to their last positions with the Dragon Care dragon phone and found nothing.
+
+I dug through the logs and the mods' source code. The best I could prove was that the dragons had been deleted from the world without dying. I couldn't prove which mod did it, and even if I could, there was no guarantee the right repo would ever fix it. I had already wanted a proper dragon control mod for Ice and Fire anyway, so I decided to build one myself: something that keeps a backup of every dragon, tells you who deleted it, lets you bring it back, and gives you real control over your dragons.
+
+### About AI
+
+I built this with AI. The idea, the features, the design decisions and all the testing in game are mine, and a lot of the code was written by Claude (Anthropic) while I directed it. I'm not sorry about that. It let me turn a bad evening in Minecraft into a mod that solves the problem for me and hopefully for you. If that is a dealbreaker for you, that's fair, and now you know.
+
+### Türkçe
+
+Ben 0sole. Büyük bir mod paketinde iki evcil Ice and Fire ejderhamla oynuyordum, biri 4. evredeydi. Kara ormanda barbarların kampına baskın yaptık, yanlarında kan büyüsü yapan Herobrine müritleri vardı. Arkamı döndüğümde 4. evre ejderham yoktu. Ölmemişti, ceset yoktu, ölüm mesajı yoktu. Biraz sonra diğeri de aynı şekilde kayboldu. Dragon Care'in dragon phone'u ile son konumlarına gittim, hiçbir şey yoktu.
+
+Logları ve modların kodlarını inceledim. Kanıtlayabildiğim tek şey ejderhaların ölmeden dünyadan silindiğiydi; hangi modun yaptığını kanıtlayamadım, bulsam bile ilgili reponun düzelteceğinin garantisi yoktu. Zaten Ice and Fire için düzgün bir ejderha kontrol modu yapmak istiyordum, ben de kendim yapmaya karar verdim.
+
+Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyundaki bütün testler benim; kodun büyük kısmını benim yönlendirmemle Claude (Anthropic) yazdı. Bundan pişman değilim.
+
 ## Features
 
 **Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. Pick a dragon, then a category:
