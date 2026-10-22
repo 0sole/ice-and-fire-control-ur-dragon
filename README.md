@@ -26,15 +26,7 @@ Ayarlar: `config/controlurdragon-common.toml`
 
 ## Geliştirme ortamı (IntelliJ IDEA)
 
-1. JDK 21 kurulu olsun (IDEA: *File → Project Structure → SDK → Download JDK → 21*).
-2. *File → Open* ile bu klasörü aç, "Trust project" de. Gradle senkronu otomatik başlar. İlk seferde Minecraft ve NeoForge indirildiği için birkaç dakika sürer.
-3. *Settings → Build, Execution, Deployment → Build Tools → Gradle* altında **Gradle JVM = 21** olsun.
-4. Senkron bitince sağ üstteki çalıştırma listesinde **Client** ve **Server** görünür. **Client** ile oyunu Ice and Fire yüklü olarak açarsın.
-5. Mod jar'ı: Gradle panelinde `build → build` ya da terminalde `gradlew build`. Çıktı `build/libs/` altında.
-
-`libs/` klasöründeki jar'lar git'e eklenmez, bkz. `libs/README.md`.
-
-## Projeyi IDEA'ya almak
-
-IDEA'da *File → New → Project from Version Control* → URL: `https://github.com/0sole/ice-and-fire-control-ur-dragon`.
-Klonladıktan sonra `libs/` klasörüne yukarıdaki jar'ları kopyala.
+1. Proje JDK'sı ve **Gradle JVM** 21 olsun (*Settings → Build Tools → Gradle*).
+2. `libs/` klasörüne Ice and Fire ve kütüphane jar'larını koy (bkz. `libs/README.md`).
+3. Gradle panelinde yenile. Senkron bitince sağ üstte **Client** ve **Server** çıkar.
+4. Mod jar'ı: Gradle panelinde `build → build` ya da `gradlew build`. Çıktı `build/libs/` altında.
