@@ -67,7 +67,16 @@ All keys can be changed under Options → Controls.
 
 **Better following.** Dragons keep a distance that fits their size, run when they fall behind, fly straight instead of zigzagging, and land next to you.
 
-**Lost dragon detection.** Every tamed dragon is backed up regularly. If one is deleted from the world without dying, the owner gets a chat message with the code that removed it and a button to bring it back. Ice and Fire's `kill()` is also fixed so it no longer silently deletes living dragons.
+## Protection against vanishing dragons
+
+Tamed Ice and Fire dragons disappearing without a trace is not just my problem. It has been reported for years: dragons vanishing mid-flight and dropping their rider ([#4308](https://github.com/AlexModGuy/Ice_and_Fire/issues/4308), [#3867](https://github.com/Alex-the-666/Ice_and_Fire/issues/3867)), dragons gone after logging out ([#2778](https://github.com/AlexModGuy/Ice_and_Fire/issues/2778)) and dragons vanishing in the middle of a fight ([#1556](https://github.com/AlexModGuy/Ice_and_Fire/issues/1556)). In none of these reports was a cause ever found. This mod doesn't try to guess the culprit, it makes sure you don't lose the dragon:
+
+- **Backups.** Every tamed dragon is saved every 30 seconds and every time its chunk unloads, together with its inventory, armor, name and settings.
+- **Detection.** If a living dragon is removed from the world without dying, you get a chat message with where it happened and which code removed it, and the full stack trace goes to the log. Dragons put into a Dragon Horn are recognised and not reported.
+- **Restore.** One click on the chat message, the wheel, or `/cud restore` brings the dragon back from its last backup. It never creates a copy of a dragon that still exists.
+- **Silent kill fix.** Ice and Fire's `kill()` deletes a living dragon without a death. It now makes the dragon die normally, with a corpse and a death message.
+- **Bring dragon.** Dragons left in unloaded chunks or other dimensions can be brought to you, and an outdated copy is dropped if its old chunk loads again.
+- **Into the horn.** A dragon can be set to go into an empty Dragon Horn in your inventory when it is badly hurt.
 
 ## Crafting
 
