@@ -4,7 +4,9 @@
   "package": "com.osole.controlurdragon.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "DragonBaseEntityMixin"
+    "DragonBaseEntityMixin",
+    "DragonFlightManagerMixin",
+    "MobAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

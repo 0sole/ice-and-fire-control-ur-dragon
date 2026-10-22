@@ -15,7 +15,9 @@ public final class ClientHooks {
         if (minecraft.screen instanceof DragonWheelScreen wheel) {
             wheel.setData(payload);
         } else if (minecraft.screen == null) {
-            minecraft.setScreen(new DragonWheelScreen(payload));
+            // Remember what the player looks at right now, for the menu's attack option.
+            minecraft.setScreen(new DragonWheelScreen(payload,
+                    minecraft.player == null ? null : ClientEvents.lookedAt(minecraft.player)));
         }
     }
 }

@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
 
@@ -35,6 +36,7 @@ public class DragonWheelScreen extends Screen {
     private static final int COLOR_HOVER = 0xD0C86414;
     private static final int COLOR_DISABLED = 0x80141414;
     private static final int COLOR_LOST = 0xA0701818;
+    private static final int COLOR_DANGER = 0xB0601010;
 
     /** One slice of the wheel. action == null means "back". */
     private record Option(DragonActionPayload.Action action, Component label, boolean enabled) {
@@ -42,17 +44,24 @@ public class DragonWheelScreen extends Screen {
 
     private List<DragonEntry> dragons = new ArrayList<>();
     private long restoreCooldownSeconds;
+    private boolean debug;
     private DragonEntry selected;
     private int hovered = -1;
+    /** What the player was looking at when the menu opened; the "attack" option targets it. */
+    private final LivingEntity target;
+    /** The delete button needs two clicks. */
+    private boolean confirmDelete;
 
-    public DragonWheelScreen(DragonListPayload data) {
+    public DragonWheelScreen(DragonListPayload data, LivingEntity target) {
         super(Component.translatable("controlurdragon.menu.title"));
+        this.target = target;
         this.setData(data);
     }
 
     public void setData(DragonListPayload data) {
         this.dragons = new ArrayList<>(data.dragons());
         this.restoreCooldownSeconds = data.restoreCooldownSeconds();
+        this.debug = data.debug();
         if (this.selected != null) {
             DragonEntry current = null;
             for (DragonEntry entry : this.dragons) if (entry.id().equals(this.selected.id())) current = entry;
@@ -72,9 +81,19 @@ public class DragonWheelScreen extends Screen {
         if (dragon.loaded()) {
             options.add(new Option(DragonActionPayload.Action.SIT, Component.translatable("controlurdragon.action.sit"), dragon.command() != 1));
             options.add(new Option(DragonActionPayload.Action.FOLLOW, Component.translatable("controlurdragon.action.follow"), dragon.command() != 2));
-            options.add(new Option(DragonActionPayload.Action.WANDER, Component.translatable("controlurdragon.action.wander"), dragon.command() != 0));
+            options.add(new Option(DragonActionPayload.Action.WANDER, Component.translatable("controlurdragon.action.wander"), dragon.command() != 0 || dragon.guarding()));
             options.add(new Option(DragonActionPayload.Action.COME, Component.translatable("controlurdragon.action.come"), dragon.distance() >= 0));
+            if (this.target != null) {
+                options.add(new Option(DragonActionPayload.Action.ATTACK,
+                        Component.translatable("controlurdragon.action.attack", shorten(this.target.getName().getString(), 10)),
+                        this.target.isAlive() && dragon.distance() >= 0));
+            }
+            options.add(new Option(DragonActionPayload.Action.GUARD, Component.translatable("controlurdragon.action.guard"), dragon.distance() >= 0));
             options.add(new Option(DragonActionPayload.Action.RENAME, Component.translatable("controlurdragon.action.rename"), true));
+            if (this.debug) {
+                options.add(new Option(DragonActionPayload.Action.DELETE, Component.translatable(this.confirmDelete
+                        ? "controlurdragon.action.delete.confirm" : "controlurdragon.action.delete"), true));
+            }
         } else if (dragon.state() == DragonRecord.State.LOST) {
             options.add(new Option(DragonActionPayload.Action.RESTORE, Component.translatable("controlurdragon.action.restore"), this.restoreCooldownSeconds == 0));
         }
@@ -111,6 +130,7 @@ public class DragonWheelScreen extends Screen {
         Option option = options.get(index);
         if (option.action() == null) {
             this.selected = null;
+            this.confirmDelete = false;
             return;
         }
         if (!option.enabled()) return;
@@ -118,7 +138,12 @@ public class DragonWheelScreen extends Screen {
             this.minecraft.setScreen(new RenameDragonScreen(this, this.selected));
             return;
         }
-        PacketDistributor.sendToServer(new DragonActionPayload(this.selected.id(), option.action(), ""));
+        if (option.action() == DragonActionPayload.Action.DELETE && !this.confirmDelete) {
+            this.confirmDelete = true;
+            return;
+        }
+        int targetId = option.action() == DragonActionPayload.Action.ATTACK && this.target != null ? this.target.getId() : -1;
+        PacketDistributor.sendToServer(new DragonActionPayload(this.selected.id(), option.action(), "", targetId));
         this.onClose();
     }
 
@@ -129,6 +154,7 @@ public class DragonWheelScreen extends Screen {
             return true;
         }
         if (button == 1) {
+            this.confirmDelete = false;
             if (this.selected != null) this.selected = null;
             else this.onClose();
             return true;
@@ -177,6 +203,7 @@ public class DragonWheelScreen extends Screen {
         for (int i = 0; i < count; i++) {
             int color;
             if (i == this.hovered) color = COLOR_HOVER;
+            else if (options != null && options.get(i).action() == DragonActionPayload.Action.DELETE) color = COLOR_DANGER;
             else if (options != null) color = options.get(i).enabled() ? COLOR_BASE : COLOR_DISABLED;
             else color = this.dragons.get(i).state() == DragonRecord.State.LOST ? COLOR_LOST : COLOR_BASE;
             float start = i * slice - (float) Math.PI / 2 + gap;
@@ -227,6 +254,7 @@ public class DragonWheelScreen extends Screen {
 
     private static Component stateLine(DragonEntry dragon) {
         if (dragon.loaded()) {
+            if (dragon.guarding()) return Component.translatable("controlurdragon.command.guarding");
             String key = switch (dragon.command()) {
                 case 1 -> "controlurdragon.command.sitting";
                 case 2 -> "controlurdragon.command.following";

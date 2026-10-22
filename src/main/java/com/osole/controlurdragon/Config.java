@@ -28,6 +28,28 @@ public final class Config {
             .comment("Cooldown per player between two restores, in minutes. Operators ignore it.")
             .defineInRange("restoreCooldownMinutes", 30, 0, 1440);
 
+    public static final ModConfigSpec.BooleanValue IMPROVED_FOLLOW = BUILDER
+            .comment("Replace Ice and Fire's follow behaviour: dragons keep a distance from you, run/fly at their own speed",
+                    "and land next to you instead of trying to stand on top of you.")
+            .define("improvedFollow", true);
+
+    public static final ModConfigSpec.IntValue GUARD_RADIUS = BUILDER
+            .comment("Radius (blocks) of the area a dragon protects with the 'Guard area' order.")
+            .defineInRange("guardRadius", 24, 8, 128);
+
+    public static final ModConfigSpec.IntValue GROUP_RANGE = BUILDER
+            .comment("Group orders (hotkeys) reach your loaded dragons within this many blocks.")
+            .defineInRange("groupOrderRange", 128, 16, 512);
+
+    public static final ModConfigSpec.BooleanValue CHAT_REMOVAL_ALERTS = BUILDER
+            .comment("Tell the owner in chat when one of their dragons is deleted without dying, with the code that removed it.")
+            .define("chatRemovalAlerts", true);
+
+    public static final ModConfigSpec.BooleanValue DEBUG_DELETE_BUTTON = BUILDER
+            .comment("Show a 'Delete (test)' option in the dragon menu that deletes the dragon without killing it,",
+                    "to test the lost-dragon detection and restore. Always shown in the development environment.")
+            .define("debugDeleteButton", false);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

@@ -10,13 +10,18 @@ import java.util.UUID;
 /**
  * Client → server: an order for one dragon chosen in the menu.
  *
- * @param text the new name for {@link Action#RENAME}, empty otherwise
+ * @param text     the new name for {@link Action#RENAME}, empty otherwise
+ * @param targetId entity id of the target for {@link Action#ATTACK}, -1 otherwise
  */
-public record DragonActionPayload(UUID dragon, Action action, String text) implements CustomPacketPayload {
+public record DragonActionPayload(UUID dragon, Action action, String text, int targetId) implements CustomPacketPayload {
     public static final int MAX_NAME_LENGTH = 32;
 
     public enum Action {
-        SIT, FOLLOW, WANDER, COME, RENAME, RESTORE
+        SIT, FOLLOW, WANDER, COME, RENAME, RESTORE, ATTACK, GUARD, DELETE
+    }
+
+    public DragonActionPayload(UUID dragon, Action action, String text) {
+        this(dragon, action, text, -1);
     }
 
     public static final Type<DragonActionPayload> TYPE = new Type<>(ControlUrDragon.id("dragon_action"));
@@ -27,10 +32,11 @@ public record DragonActionPayload(UUID dragon, Action action, String text) imple
         buf.writeUUID(payload.dragon);
         buf.writeEnum(payload.action);
         buf.writeUtf(payload.text, MAX_NAME_LENGTH * 4);
+        buf.writeVarInt(payload.targetId);
     }
 
     private static DragonActionPayload read(FriendlyByteBuf buf) {
-        return new DragonActionPayload(buf.readUUID(), buf.readEnum(Action.class), buf.readUtf(MAX_NAME_LENGTH * 4));
+        return new DragonActionPayload(buf.readUUID(), buf.readEnum(Action.class), buf.readUtf(MAX_NAME_LENGTH * 4), buf.readVarInt());
     }
 
     @Override

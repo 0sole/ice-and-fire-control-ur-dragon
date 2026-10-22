@@ -16,7 +16,7 @@ public final class ModNetwork {
 
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("2");
 
         registrar.playToServer(RequestDragonListPayload.TYPE, RequestDragonListPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
@@ -26,6 +26,11 @@ public final class ModNetwork {
         registrar.playToServer(DragonActionPayload.TYPE, DragonActionPayload.CODEC,
                 (payload, context) -> context.enqueueWork(() -> {
                     if (context.player() instanceof ServerPlayer player) DragonActions.handle(player, payload);
+                }));
+
+        registrar.playToServer(GroupOrderPayload.TYPE, GroupOrderPayload.CODEC,
+                (payload, context) -> context.enqueueWork(() -> {
+                    if (context.player() instanceof ServerPlayer player) DragonActions.handleGroup(player, payload);
                 }));
 
         // ClientHooks is only loaded when this runs, which only happens on the client.

@@ -39,7 +39,9 @@ public final class DragonRestorer {
      */
     public static Component tryRestore(ServerPlayer player, DragonRecord record) {
         boolean operator = player.hasPermissions(2);
-        if (!operator) {
+        // Dragons removed with the test delete button come back free, so testing does not use up the cooldown.
+        boolean testDelete = record.lostReason != null && record.lostReason.startsWith(DragonTracker.TEST_PREFIX);
+        if (!operator && !testDelete) {
             if (!Config.OWNERS_CAN_RESTORE.get() || !player.getUUID().equals(record.ownerId))
                 return Component.translatable("controlurdragon.restore.no_permission");
             long secondsLeft = cooldownSecondsLeft(player);
@@ -47,7 +49,7 @@ public final class DragonRestorer {
                 return Component.translatable("controlurdragon.restore.cooldown", secondsLeft / 60 + 1);
         }
         Component error = restore(player, record);
-        if (error == null && !operator)
+        if (error == null && !operator && !testDelete)
             DragonRecordsData.get(player.server).setLastRestore(player.getUUID(), player.serverLevel().getGameTime());
         return error;
     }

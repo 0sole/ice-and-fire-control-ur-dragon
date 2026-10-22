@@ -3,7 +3,13 @@ package com.osole.controlurdragon.tracking;
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
 import com.osole.controlurdragon.Config;
 import com.osole.controlurdragon.ControlUrDragon;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -23,6 +29,15 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 public final class DragonTracker {
     /** Class names that mean "the dragon was put into an item", not lost. */
     private static final String[] STORING_CALLERS = {"DragonHornItem"};
+
+    /** Prefix of {@link DragonRecord#lostReason} for dragons removed with the test delete button. */
+    public static final String TEST_PREFIX = "TEST_";
+    private static final java.util.Set<java.util.UUID> TEST_DELETES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Call right before discarding a dragon on purpose for testing. */
+    public static void markTestDelete(java.util.UUID dragon) {
+        TEST_DELETES.add(dragon);
+    }
 
     private DragonTracker() {
     }
@@ -109,7 +124,7 @@ public final class DragonTracker {
 
         DragonRecord record = update(level, dragon, true);
         record.state = stored ? DragonRecord.State.STORED : DragonRecord.State.LOST;
-        record.lostReason = reason.name();
+        record.lostReason = (TEST_DELETES.remove(dragon.getUUID()) ? TEST_PREFIX : "") + reason.name();
         record.lostTrace = summary;
         record.lostGameTime = level.getGameTime();
 
@@ -119,6 +134,34 @@ public final class DragonTracker {
                     record.name, dragon.getUUID(), record.ownerId, reason, record.dimension, dragon.blockPosition(),
                     dragon.getUUID(), trace);
         }
+        if (Config.CHAT_REMOVAL_ALERTS.get() && !stored) alertOwner(level, record, reason);
+    }
+
+    /** Tells the owner in chat that a dragon vanished, why, and gives a clickable restore. */
+    private static void alertOwner(ServerLevel level, DragonRecord record, Entity.RemovalReason reason) {
+        ServerPlayer owner = level.getServer().getPlayerList().getPlayer(record.ownerId);
+        if (owner == null) return;
+
+        String trace = record.lostTrace == null || record.lostTrace.isEmpty() ? "?" : record.lostTrace;
+        String[] lines = trace.split("\n");
+        MutableComponent message = Component.translatable("controlurdragon.alert.lost", record.name, record.lostReason,
+                        record.dimension, (int) record.x, (int) record.y, (int) record.z)
+                .withStyle(ChatFormatting.RED);
+        owner.sendSystemMessage(message);
+
+        // The first few callers, the rest on hover.
+        MutableComponent where = Component.translatable("controlurdragon.alert.trace").withStyle(ChatFormatting.GRAY);
+        for (int i = 0; i < Math.min(4, lines.length); i++) {
+            where.append(Component.literal("\n  " + lines[i]).withStyle(ChatFormatting.DARK_GRAY));
+        }
+        where.withStyle(style -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(trace))));
+        owner.sendSystemMessage(where);
+
+        String command = "/cud restore " + record.dragonId;
+        owner.sendSystemMessage(Component.translatable("controlurdragon.alert.restore")
+                .withStyle(style -> style.withColor(ChatFormatting.GREEN).withUnderlined(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal(command)))));
     }
 
     /** Keeps the interesting stack frames: who called remove(), skipping Minecraft/NeoForge internals and this mod. */
