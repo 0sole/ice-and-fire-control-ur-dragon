@@ -2,6 +2,7 @@ package com.osole.controlurdragon;
 
 import com.mojang.logging.LogUtils;
 import com.osole.controlurdragon.registry.ModItems;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -19,6 +20,10 @@ public class ControlUrDragon {
         ModItems.ITEMS.register(modBus);
         modBus.addListener(ControlUrDragon::addToCreativeTabs);
         container.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+    }
+
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MODID, path);
     }
 
     private static void addToCreativeTabs(BuildCreativeModeTabContentsEvent event) {

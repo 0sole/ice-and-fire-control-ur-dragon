@@ -12,14 +12,17 @@ Minecraft 1.21.1 · NeoForge 21.1 · Ice and Fire CE 2.1.4
   - `/cud list` → ejderhaların ve durumları (hayatta, yüklü değil, eşyada, KAYIP, ölü)
   - `/cud info <uuid>` → ayrıntılar; kayıpsa hangi kodun sildiği
   - `/cud restore <uuid>` → kayıp ejderhayı son yedekten yanına getirir. Ejderha dünyada hâlâ varsa kopya oluşturmaz. Oyuncular için 30 dakika bekleme süresi var, operatörler beklemez.
-- **Ejderha Düdüğü:** Şimdilik sağ tıklayınca listeyi gösterir. Sonraki adımda tuşlar ve menü buna bağlanacak.
+- **Ejderha menüsü (v0.2.0):** Düdük envanterdeyken **V** (Ayarlar → Kontroller'den değiştirilebilir) ya da düdüğe sağ tık. Iron's Spells tarzı çark: önce ejderha, sonra komut.
+  - Otur, Takip et, Serbest, Yanıma gel, İsim ver
+  - Kayıp ejderhada **Geri getir** (30 dk bekleme süresi)
+  - Tuşu basılı tutup ejderhanın üstünde bırakmak da seçer. Sağ tık / Esc geri gider.
 
 Ayarlar: `config/controlurdragon-common.toml`
 
 ## Yol haritası
 
 1. ~~Takip, silinme logu, kill() düzeltmesi, geri getirme komutu~~
-2. Düdük envanterdeyken tuşlar ve menü: ejderha seç → komut (otur, takip, toplan, bekle)
+2. ~~Düdük ve çark menü: otur, takip, serbest, yanıma gel, isim ver, geri getir~~
 3. Tek hedefe saldır / seçili grupla saldır
 4. Ejderha başına yapı yıkma aç/kapat (`GriefBreakBlockEvent`) ve davranış ayarları
 5. Diğer modlar için destek (Dragon Care, MineColonies, MCA vb.)

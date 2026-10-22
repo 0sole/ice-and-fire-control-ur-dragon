@@ -2,7 +2,6 @@ package com.osole.controlurdragon.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
-import com.osole.controlurdragon.Config;
 import com.osole.controlurdragon.ControlUrDragon;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import com.osole.controlurdragon.tracking.DragonRecordsData;
@@ -112,28 +111,11 @@ public final class CudCommands {
             return 0;
         }
 
-        boolean operator = source.hasPermission(2);
-        if (!operator) {
-            if (!Config.OWNERS_CAN_RESTORE.get() || !player.getUUID().equals(record.ownerId)) {
-                source.sendFailure(Component.translatable("controlurdragon.restore.no_permission"));
-                return 0;
-            }
-            long cooldownTicks = Config.RESTORE_COOLDOWN_MINUTES.get() * 60L * 20L;
-            long last = data.getLastRestore(player.getUUID());
-            long now = player.serverLevel().getGameTime();
-            if (last != Long.MIN_VALUE && now - last < cooldownTicks) {
-                long minutesLeft = (cooldownTicks - (now - last)) / 1200 + 1;
-                source.sendFailure(Component.translatable("controlurdragon.restore.cooldown", minutesLeft));
-                return 0;
-            }
-        }
-
-        Component error = DragonRestorer.restore(player, record);
+        Component error = DragonRestorer.tryRestore(player, record);
         if (error != null) {
             source.sendFailure(error);
             return 0;
         }
-        if (!operator) data.setLastRestore(player.getUUID(), player.serverLevel().getGameTime());
         source.sendSuccess(() -> Component.translatable("controlurdragon.restore.done", record.name).withStyle(ChatFormatting.GREEN), true);
         return 1;
     }

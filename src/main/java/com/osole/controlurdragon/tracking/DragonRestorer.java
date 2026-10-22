@@ -1,6 +1,7 @@
 package com.osole.controlurdragon.tracking;
 
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
+import com.osole.controlurdragon.Config;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -18,7 +19,40 @@ public final class DragonRestorer {
     private DragonRestorer() {
     }
 
-    /** @return null on success, otherwise the reason it failed. */
+    private static long cooldownTicks() {
+        return Config.RESTORE_COOLDOWN_MINUTES.get() * 60L * 20L;
+    }
+
+    /** Seconds until this player may restore again (0 = now). Operators have no cooldown. */
+    public static long cooldownSecondsLeft(ServerPlayer player) {
+        if (player.hasPermissions(2)) return 0;
+        long last = DragonRecordsData.get(player.server).getLastRestore(player.getUUID());
+        if (last == Long.MIN_VALUE) return 0;
+        long left = cooldownTicks() - (player.serverLevel().getGameTime() - last);
+        return Math.max(0, (left + 19) / 20);
+    }
+
+    /**
+     * Checks permission and cooldown, then restores. Used by the command and the menu.
+     *
+     * @return null on success, otherwise the reason it failed
+     */
+    public static Component tryRestore(ServerPlayer player, DragonRecord record) {
+        boolean operator = player.hasPermissions(2);
+        if (!operator) {
+            if (!Config.OWNERS_CAN_RESTORE.get() || !player.getUUID().equals(record.ownerId))
+                return Component.translatable("controlurdragon.restore.no_permission");
+            long secondsLeft = cooldownSecondsLeft(player);
+            if (secondsLeft > 0)
+                return Component.translatable("controlurdragon.restore.cooldown", secondsLeft / 60 + 1);
+        }
+        Component error = restore(player, record);
+        if (error == null && !operator)
+            DragonRecordsData.get(player.server).setLastRestore(player.getUUID(), player.serverLevel().getGameTime());
+        return error;
+    }
+
+    /** Restores without permission or cooldown checks. @return null on success, otherwise the reason it failed. */
     public static Component restore(ServerPlayer player, DragonRecord record) {
         if (record.state != DragonRecord.State.LOST)
             return Component.translatable("controlurdragon.restore.not_lost", record.state.name());
