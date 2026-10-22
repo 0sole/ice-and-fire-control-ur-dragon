@@ -2,7 +2,6 @@ package com.osole.controlurdragon.server;
 
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
 import com.osole.controlurdragon.Config;
-import com.osole.controlurdragon.ControlUrDragon;
 import com.osole.controlurdragon.behavior.DragonCarry;
 import com.osole.controlurdragon.behavior.DragonOrders;
 import com.osole.controlurdragon.behavior.DragonSettings;
@@ -14,7 +13,6 @@ import com.osole.controlurdragon.network.GroupOrderPayload;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import com.osole.controlurdragon.tracking.DragonRecordsData;
 import com.osole.controlurdragon.tracking.DragonRestorer;
-import com.osole.controlurdragon.tracking.DragonTracker;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -24,7 +22,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.entity.PartEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -35,10 +32,6 @@ import java.util.UUID;
 
 public final class DragonActions {
     private DragonActions() {
-    }
-
-    public static boolean debugEnabled() {
-        return !FMLEnvironment.production || Config.DEBUG_DELETE_BUTTON.get();
     }
 
     public static DragonBaseEntity findLoaded(MinecraftServer server, UUID id) {
@@ -99,7 +92,7 @@ public final class DragonActions {
             }
         }
         PacketDistributor.sendToPlayer(player, new DragonListPayload(entries, DragonRestorer.cooldownSecondsLeft(player),
-                DragonBringer.cooldownSecondsLeft(player), debugEnabled()));
+                DragonBringer.cooldownSecondsLeft(player)));
     }
 
     public static void handle(ServerPlayer player, DragonActionPayload payload) {
@@ -201,19 +194,6 @@ public final class DragonActions {
             case DROP -> {
                 if (DragonCarry.release(dragon)) tell(player, Component.translatable("controlurdragon.carry.dropped", name));
                 else fail(player, Component.translatable("controlurdragon.carry.nothing", name));
-            }
-            case DELETE -> {
-                if (!debugEnabled()) {
-                    fail(player, Component.translatable("controlurdragon.action.delete.disabled"));
-                } else {
-                    ControlUrDragon.LOGGER.warn("[ControlUrDragon] TEST: {} deleted dragon '{}' ({}) from the menu",
-                            player.getGameProfile().getName(), name, dragon.getUUID());
-                    DragonOrders.clearAll(dragon);
-                    DragonCarry.release(dragon);
-                    DragonTracker.markTestDelete(dragon.getUUID());
-                    dragon.discard();
-                    tell(player, Component.translatable("controlurdragon.action.delete.done", name).withStyle(ChatFormatting.GOLD));
-                }
             }
             default -> {
             }

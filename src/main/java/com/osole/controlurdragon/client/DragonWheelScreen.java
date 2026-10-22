@@ -81,11 +81,16 @@ public class DragonWheelScreen extends Screen {
     private static final GroupOrderPayload.Order[] GROUP_ORDERS = {
             GroupOrderPayload.Order.SIT, GroupOrderPayload.Order.FOLLOW, GroupOrderPayload.Order.GUARD};
 
+    private static final int DRAGONS_PER_PAGE = 5;
+    private static final int TAB_WIDTH = 16;
+    private static final int TAB_HEIGHT = 14;
+    private static final int TAB_GAP = 3;
+
     private final LivingEntity target;
+    private int page;
     private List<DragonEntry> dragons = new ArrayList<>();
     private long restoreCooldownSeconds;
     private long bringCooldownSeconds;
-    private boolean debug;
     private DragonEntry selected;
     private Category category;
     private Setting settingMenu;
@@ -100,9 +105,9 @@ public class DragonWheelScreen extends Screen {
 
     public void setData(DragonListPayload data) {
         this.dragons = new ArrayList<>(data.dragons());
+        this.page = Mth.clamp(this.page, 0, this.pageCount() - 1);
         this.restoreCooldownSeconds = data.restoreCooldownSeconds();
         this.bringCooldownSeconds = data.bringCooldownSeconds();
-        this.debug = data.debug();
         if (this.selected != null) {
             DragonEntry current = null;
             for (DragonEntry entry : this.dragons) if (entry.id().equals(this.selected.id())) current = entry;
@@ -195,23 +200,52 @@ public class DragonWheelScreen extends Screen {
                             : Component.translatable("controlurdragon.action.carry.none"), dragon.distance() >= 0));
                 }
                 list.add(Option.action(Action.RENAME, 0, Component.translatable("controlurdragon.action.rename"), true));
-                if (this.debug) {
-                    list.add(Option.action(Action.DELETE, 0, confirmable(Action.DELETE,
-                            Component.translatable("controlurdragon.action.delete")), true).asDanger());
-                }
             }
         }
         list.add(Option.back());
         return list;
     }
 
+    private int pageCount() {
+        return Math.max(1, (this.dragons.size() + DRAGONS_PER_PAGE - 1) / DRAGONS_PER_PAGE);
+    }
+
     private int topCount() {
-        return GROUP_ORDERS.length + this.dragons.size();
+        int onPage = Mth.clamp(this.dragons.size() - this.page * DRAGONS_PER_PAGE, 0, DRAGONS_PER_PAGE);
+        return GROUP_ORDERS.length + onPage;
     }
 
     private DragonEntry dragonAt(int index) {
         int i = index - GROUP_ORDERS.length;
-        return i >= 0 && i < this.dragons.size() ? this.dragons.get(i) : null;
+        if (i < 0 || i >= DRAGONS_PER_PAGE) return null;
+        i += this.page * DRAGONS_PER_PAGE;
+        return i < this.dragons.size() ? this.dragons.get(i) : null;
+    }
+
+    private boolean showsTabs() {
+        return this.selected == null && this.pageCount() > 1;
+    }
+
+    private int tabX() {
+        return (int) (this.width / 2F + OUTER + 14);
+    }
+
+    private int tabY(int index) {
+        int total = this.pageCount() * TAB_HEIGHT + (this.pageCount() - 1) * TAB_GAP;
+        return this.height / 2 - total / 2 + index * (TAB_HEIGHT + TAB_GAP);
+    }
+
+    private int tabAt(double mouseX, double mouseY) {
+        if (!this.showsTabs() || mouseX < this.tabX() || mouseX >= this.tabX() + TAB_WIDTH) return -1;
+        for (int i = 0; i < this.pageCount(); i++) {
+            if (mouseY >= this.tabY(i) && mouseY < this.tabY(i) + TAB_HEIGHT) return i;
+        }
+        return -1;
+    }
+
+    private void setPage(int page) {
+        this.page = Mth.clamp(page, 0, this.pageCount() - 1);
+        this.confirming = null;
     }
 
     private int sliceCount() {
@@ -281,7 +315,7 @@ public class DragonWheelScreen extends Screen {
                     this.minecraft.setScreen(new RenameDragonScreen(this, this.selected));
                     return;
                 }
-                if ((action == Action.BRING || action == Action.RESTORE || action == Action.DELETE) && this.confirming != action) {
+                if ((action == Action.BRING || action == Action.RESTORE) && this.confirming != action) {
                     this.confirming = action;
                     return;
                 }
@@ -293,6 +327,11 @@ public class DragonWheelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        int tab = this.tabAt(mouseX, mouseY);
+        if (button == 0 && tab >= 0) {
+            this.setPage(tab);
+            return true;
+        }
         if (button == 0) {
             this.choose(this.sliceAt(mouseX, mouseY, this.sliceCount()));
             return true;
@@ -302,6 +341,15 @@ public class DragonWheelScreen extends Screen {
             return true;
         }
         return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (this.showsTabs() && scrollY != 0) {
+            this.setPage(this.page + (scrollY < 0 ? 1 : -1));
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -320,7 +368,8 @@ public class DragonWheelScreen extends Screen {
         float cy = this.height / 2F;
         List<Option> options = this.options();
         int count = options == null ? this.topCount() : options.size();
-        this.hovered = this.sliceAt(mouseX, mouseY, count);
+        this.hovered = this.tabAt(mouseX, mouseY) >= 0 ? -1 : this.sliceAt(mouseX, mouseY, count);
+        this.renderTabs(graphics, mouseX, mouseY);
 
         Component heading = this.selected == null ? this.title : Component.literal(this.selected.name()).withStyle(ChatFormatting.GOLD);
         if (this.category != null) {
@@ -389,6 +438,18 @@ public class DragonWheelScreen extends Screen {
         }
 
         this.renderInfo(graphics, (int) cx, (int) (cy + OUTER + 6), options);
+    }
+
+    private void renderTabs(GuiGraphics graphics, int mouseX, int mouseY) {
+        if (!this.showsTabs()) return;
+        int hoveredTab = this.tabAt(mouseX, mouseY);
+        int x = this.tabX();
+        for (int i = 0; i < this.pageCount(); i++) {
+            int y = this.tabY(i);
+            int color = i == this.page ? COLOR_HOVER : i == hoveredTab ? COLOR_CATEGORY : COLOR_BASE;
+            graphics.fill(x, y, x + TAB_WIDTH, y + TAB_HEIGHT, color);
+            graphics.drawCenteredString(this.font, String.valueOf(i + 1), x + TAB_WIDTH / 2, y + 3, i == this.page ? 0xFFFFFF : 0xBBBBBB);
+        }
     }
 
     private void drawLabel(GuiGraphics graphics, Component text, float x, float y, int color) {

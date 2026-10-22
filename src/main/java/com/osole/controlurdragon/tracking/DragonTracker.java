@@ -27,14 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @EventBusSubscriber(modid = ControlUrDragon.MODID)
 public final class DragonTracker {
-    public static final String TEST_PREFIX = "TEST_";
-    private static final Set<UUID> TEST_DELETES = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> STORED = ConcurrentHashMap.newKeySet();
     private static final String[] STORING_CALLERS = {"DragonHornItem"};
-
-    public static void markTestDelete(UUID dragon) {
-        TEST_DELETES.add(dragon);
-    }
 
     public static void markStored(UUID dragon) {
         STORED.add(dragon);
@@ -131,7 +125,7 @@ public final class DragonTracker {
 
         DragonRecord record = update(level, dragon, true);
         record.state = stored ? DragonRecord.State.STORED : DragonRecord.State.LOST;
-        record.lostReason = (TEST_DELETES.remove(dragon.getUUID()) ? TEST_PREFIX : "") + reason.name();
+        record.lostReason = reason.name();
         record.lostTrace = summary;
         record.lostGameTime = level.getGameTime();
 

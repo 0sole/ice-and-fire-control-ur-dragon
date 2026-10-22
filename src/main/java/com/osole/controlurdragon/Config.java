@@ -53,11 +53,6 @@ public final class Config {
             .comment("Tell the owner in chat when one of their dragons is deleted without dying, with the code that removed it.")
             .define("chatRemovalAlerts", true);
 
-    public static final ModConfigSpec.BooleanValue DEBUG_DELETE_BUTTON = BUILDER
-            .comment("Show a 'Delete (test)' option in the dragon menu that deletes the dragon without killing it,",
-                    "to test the lost-dragon detection and restore. Always shown in the development environment.")
-            .define("debugDeleteButton", false);
-
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     private Config() {

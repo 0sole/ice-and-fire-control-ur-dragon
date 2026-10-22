@@ -24,7 +24,7 @@ Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyun
 
 ## Features
 
-**Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. The three slices at the top order all your dragons nearby to sit, follow or guard the spot you stand on. Pick a dragon for everything else, then a category:
+**Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. The three slices at the top order all your dragons nearby to sit, follow or guard the spot you stand on. Pick a dragon for everything else, then a category. With more than five dragons, numbered tabs on the right of the wheel (or the mouse wheel) switch between pages:
 
 | Category | Orders |
 | --- | --- |
