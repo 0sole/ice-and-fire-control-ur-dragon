@@ -41,6 +41,21 @@ public final class DragonFollowLogic {
 
     public static Vec3 flightTarget(DragonBaseEntity dragon) {
         if (!Config.IMPROVED_FOLLOW.get() || dragon.getControllingPassenger() != null) return null;
+        Vec3 target = rawFlightTarget(dragon);
+        return target == null ? null : awayFromSelf(dragon, target);
+    }
+
+    private static Vec3 awayFromSelf(DragonBaseEntity dragon, Vec3 target) {
+        double dx = target.x - dragon.getX();
+        double dz = target.z - dragon.getZ();
+        if (dx * dx + dz * dz >= 4) return target;
+        float yaw = (dragon.getYRot() + 90F) * Mth.DEG_TO_RAD;
+        return new Vec3(dragon.getX() + Mth.cos(yaw) * 4, target.y, dragon.getZ() + Mth.sin(yaw) * 4);
+    }
+
+    private static Vec3 rawFlightTarget(DragonBaseEntity dragon) {
+        Vec3 retreat = DragonBehavior.retreatFlightTarget(dragon);
+        if (retreat != null) return retreat;
 
         LivingEntity pickup = DragonCarry.getPickupTarget(dragon);
         if (pickup != null) return new Vec3(pickup.getX(), pickup.getY() + pickup.getBbHeight() + 1.0, pickup.getZ());
@@ -65,18 +80,24 @@ public final class DragonFollowLogic {
                 || !owner.onGround() && owner.getY() - groundY(dragon, owner.getX(), owner.getZ()) > 4;
         double cruiseY = Math.max(owner.getY() + 4 + dragon.getDragonStage(), groundY(dragon, dragon.getX(), dragon.getZ()) + 6) + extraHeight;
 
-        if (horizontal > keep) {
+        if (horizontal > keep * 1.5F) {
             Vec3 near = pointNearOwner(dragon, owner, keep * 0.8F);
             return new Vec3(near.x, cruiseY, near.z);
         }
-        if (stayUp) return new Vec3(dragon.getX(), cruiseY, dragon.getZ());
+        if (stayUp) {
+            double angle = Math.atan2(dragon.getZ() - owner.getZ(), dragon.getX() - owner.getX()) + 0.45;
+            return new Vec3(owner.getX() + Math.cos(angle) * keep, cruiseY, owner.getZ() + Math.sin(angle) * keep);
+        }
 
-        double ground = groundY(dragon, dragon.getX(), dragon.getZ());
-        if (dragon.onGround() || dragon.getY() - ground < 2.5) {
+        Vec3 landing = pointNearOwner(dragon, owner, keep * 0.7F);
+        double ground = groundY(dragon, landing.x, landing.z);
+        double height = dragon.getY() - groundY(dragon, dragon.getX(), dragon.getZ());
+        if (dragon.onGround() || height < 3) {
             dragon.setFlying(false);
             dragon.setHovering(false);
+            dragon.getNavigation().stop();
         }
-        return new Vec3(dragon.getX(), ground, dragon.getZ());
+        return new Vec3(landing.x, ground, landing.z);
     }
 
     private static Vec3 guardFlightTarget(DragonBaseEntity dragon, DragonOrders.GuardArea guard, double extraHeight) {

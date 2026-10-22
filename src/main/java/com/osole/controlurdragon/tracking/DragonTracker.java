@@ -29,10 +29,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class DragonTracker {
     public static final String TEST_PREFIX = "TEST_";
     private static final Set<UUID> TEST_DELETES = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> STORED = ConcurrentHashMap.newKeySet();
     private static final String[] STORING_CALLERS = {"DragonHornItem"};
 
     public static void markTestDelete(UUID dragon) {
         TEST_DELETES.add(dragon);
+    }
+
+    public static void markStored(UUID dragon) {
+        STORED.add(dragon);
     }
 
     private DragonTracker() {
@@ -61,6 +66,16 @@ public final class DragonTracker {
         }
         data.setDirty();
         return record;
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void dropStaleCopy(EntityJoinLevelEvent event) {
+        if (!(event.getLevel() instanceof ServerLevel level) || !isTracked(event.getEntity())) return;
+        DragonRecord record = DragonRecordsData.get(level.getServer()).get(event.getEntity().getUUID());
+        if (record == null || DragonRestorer.generationOf(event.getEntity()) >= record.generation) return;
+        ControlUrDragon.LOGGER.info("[ControlUrDragon] Dropped an outdated copy of dragon '{}' ({}) that was brought to its owner",
+                record.name, record.dragonId);
+        event.setCanceled(true);
     }
 
     @SubscribeEvent
@@ -111,7 +126,7 @@ public final class DragonTracker {
 
         Throwable trace = new Throwable("Tamed dragon removed without dying");
         String summary = summarize(trace);
-        boolean stored = false;
+        boolean stored = STORED.remove(dragon.getUUID());
         for (String caller : STORING_CALLERS) stored |= summary.contains(caller);
 
         DragonRecord record = update(level, dragon, true);

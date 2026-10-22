@@ -30,6 +30,7 @@ public final class DragonRecord {
     public String lostReason = "";
     public String lostTrace = "";
     public CompoundTag snapshot = new CompoundTag();
+    public int generation;
 
     public DragonRecord(UUID dragonId) {
         this.dragonId = dragonId;
@@ -52,6 +53,7 @@ public final class DragonRecord {
         tag.putString("LostReason", this.lostReason);
         tag.putString("LostTrace", this.lostTrace);
         tag.put("Snapshot", this.snapshot);
+        tag.putInt("Generation", this.generation);
         return tag;
     }
 
@@ -75,6 +77,7 @@ public final class DragonRecord {
         record.lostReason = tag.getString("LostReason");
         record.lostTrace = tag.getString("LostTrace");
         record.snapshot = tag.getCompound("Snapshot");
+        record.generation = tag.getInt("Generation");
         return record;
     }
 }

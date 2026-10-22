@@ -5,6 +5,7 @@ import com.osole.controlurdragon.Config;
 import com.osole.controlurdragon.ControlUrDragon;
 import com.osole.controlurdragon.behavior.DragonCarry;
 import com.osole.controlurdragon.behavior.DragonOrders;
+import com.osole.controlurdragon.behavior.DragonSettings;
 import com.osole.controlurdragon.item.DragonWhistleItem;
 import com.osole.controlurdragon.network.DragonActionPayload;
 import com.osole.controlurdragon.network.DragonEntry;
@@ -64,6 +65,13 @@ public final class DragonActions {
         player.displayClientMessage(message.copy().withStyle(ChatFormatting.RED), true);
     }
 
+    private static int[] settingsOf(DragonBaseEntity dragon) {
+        DragonSettings.Setting[] all = DragonSettings.Setting.values();
+        int[] values = new int[all.length];
+        for (int i = 0; i < all.length; i++) values[i] = DragonSettings.get(dragon, all[i]);
+        return values;
+    }
+
     public static void sendList(ServerPlayer player) {
         if (!DragonWhistleItem.isCarriedBy(player)) {
             tell(player, Component.translatable("controlurdragon.menu.no_whistle"));
@@ -81,13 +89,13 @@ public final class DragonActions {
                 entries.add(new DragonEntry(record.dragonId, dragon.getName().getString(),
                         BuiltInRegistries.ENTITY_TYPE.getKey(dragon.getType()).toString(), dragon.getDragonStage(),
                         DragonRecord.State.ALIVE, true, distance, dragon.getCommand(), DragonOrders.getGuard(dragon) != null,
-                        DragonOrders.getStance(dragon).ordinal(), carried == null ? "" : carried.getName().getString()));
+                        settingsOf(dragon), carried == null ? "" : carried.getName().getString()));
             } else {
                 int distance = record.dimension.equals(playerDimension)
                         ? (int) Math.sqrt(player.distanceToSqr(record.x, record.y, record.z)) : -1;
                 DragonRecord.State state = record.state == DragonRecord.State.ALIVE ? DragonRecord.State.UNLOADED : record.state;
                 entries.add(new DragonEntry(record.dragonId, record.name, record.entityType, record.stage,
-                        state, false, distance, -1, false, 0, ""));
+                        state, false, distance, -1, false, new int[0], ""));
             }
         }
         PacketDistributor.sendToPlayer(player, new DragonListPayload(entries, DragonRestorer.cooldownSecondsLeft(player),
@@ -172,12 +180,19 @@ public final class DragonActions {
                 DragonOrders.guard(dragon, center, Config.GUARD_RADIUS.get());
                 tell(player, Component.translatable("controlurdragon.action.guard.done", name, Config.GUARD_RADIUS.get()));
             }
-            case STANCE -> {
-                DragonOrders.Stance stance = DragonOrders.Stance.byId(payload.value());
-                DragonOrders.setStance(dragon, stance);
-                if (stance == DragonOrders.Stance.PASSIVE) DragonOrders.stop(dragon);
-                tell(player, Component.translatable("controlurdragon.stance.done", name,
-                        Component.translatable("controlurdragon.stance." + stance.name().toLowerCase())));
+            case SETTING -> {
+                DragonSettings.Setting setting;
+                try {
+                    setting = DragonSettings.Setting.valueOf(payload.text());
+                } catch (IllegalArgumentException e) {
+                    return;
+                }
+                int value = Math.floorMod(payload.value(), DragonSettings.optionCount(setting));
+                DragonSettings.set(dragon, setting, value);
+                tell(player, Component.translatable("controlurdragon.setting.done", name,
+                        Component.translatable(DragonSettings.nameKey(setting)),
+                        Component.translatable(DragonSettings.valueKey(setting, value))));
+                sendList(player);
             }
             case CARRY -> {
                 LivingEntity target = resolveTarget(player, payload.value());
@@ -207,6 +222,8 @@ public final class DragonActions {
 
     private static void carry(ServerPlayer player, DragonBaseEntity dragon, LivingEntity target) {
         String name = dragon.getName().getString();
+        LivingEntity below = DragonCarry.findBelow(dragon);
+        if (below != null) target = below;
         if (target == null || target.level() != dragon.level()) {
             fail(player, Component.translatable("controlurdragon.carry.no_target"));
             return;
@@ -292,9 +309,7 @@ public final class DragonActions {
                 tell(player, Component.translatable("controlurdragon.carry.dropped", ridden.getName()));
                 return;
             }
-            LivingEntity target = resolveTarget(player, targetId);
-            if (target == null || !DragonCarry.canCarry(ridden, target)) target = DragonCarry.findBelow(ridden);
-            carry(player, ridden, target);
+            carry(player, ridden, resolveTarget(player, targetId));
             return;
         }
 
@@ -305,6 +320,12 @@ public final class DragonActions {
             DragonCarry.release(carrying);
             tell(player, Component.translatable("controlurdragon.carry.dropped", carrying.getName()));
             return;
+        }
+        for (DragonBaseEntity dragon : dragons.stream().sorted(closest).toList()) {
+            if (dragon.getControllingPassenger() == null && DragonCarry.findBelow(dragon) != null) {
+                carry(player, dragon, null);
+                return;
+            }
         }
         LivingEntity target = resolveTarget(player, targetId);
         if (target == null) {

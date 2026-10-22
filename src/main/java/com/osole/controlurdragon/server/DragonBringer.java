@@ -3,10 +3,10 @@ package com.osole.controlurdragon.server;
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
 import com.osole.controlurdragon.Config;
 import com.osole.controlurdragon.behavior.DragonCarry;
-import com.osole.controlurdragon.behavior.DragonFollowLogic;
 import com.osole.controlurdragon.behavior.DragonOrders;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import com.osole.controlurdragon.tracking.DragonRecordsData;
+import com.osole.controlurdragon.tracking.DragonRestorer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -83,6 +83,16 @@ public final class DragonBringer {
             return;
         }
 
+        if (!record.snapshot.isEmpty()) {
+            DragonRestorer.Spawned spawned = DragonRestorer.spawnFromSnapshot(player, record, landingSpot(player, dragonWidth(record)));
+            if (spawned.error() == null) {
+                prepare(spawned.dragon());
+                DragonRecordsData.get(player.server).setLastBring(player.getUUID(), now(player.server));
+                player.displayClientMessage(Component.translatable("controlurdragon.bring.done", record.name).withStyle(ChatFormatting.GREEN), true);
+                return;
+            }
+        }
+
         ResourceLocation dimension = ResourceLocation.tryParse(record.dimension);
         ServerLevel level = dimension == null ? null : player.server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
         if (level == null) {
@@ -117,28 +127,42 @@ public final class DragonBringer {
         }
     }
 
-    private static void teleport(ServerPlayer player, DragonBaseEntity dragon) {
-        String name = dragon.getName().getString();
-        DragonCarry.release(dragon);
-        dragon.ejectPassengers();
-        DragonOrders.clearAll(dragon);
-        dragon.setOrderedToSit(false);
-        dragon.setInSittingPose(false);
-        dragon.setCommand(2);
-        dragon.getNavigation().stop();
-        dragon.setDeltaMovement(Vec3.ZERO);
+    private static float dragonWidth(DragonRecord record) {
+        return 2F + record.stage * 1.5F;
+    }
 
+    private static Vec3 landingSpot(ServerPlayer player, float dragonWidth) {
         ServerLevel level = player.serverLevel();
         Vec3 look = player.getLookAngle();
         Vec3 flat = new Vec3(look.x, 0, look.z);
         if (flat.lengthSqr() < 1.0E-4) flat = new Vec3(0, 0, 1);
-        float distance = DragonFollowLogic.followDistance(dragon) * 0.6F;
+        float distance = Mth.clamp(4F + dragonWidth * 1.2F, 6F, 24F) * 0.6F;
         Vec3 spot = player.position().subtract(flat.normalize().scale(distance));
         double ground = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mth.floor(spot.x), Mth.floor(spot.z));
         double y = ground >= player.getY() - 4 && ground <= player.getY() + 8 ? ground : player.getY();
+        return new Vec3(spot.x, y, spot.z);
+    }
 
+    private static void prepare(DragonBaseEntity dragon) {
+        DragonCarry.release(dragon);
+        dragon.ejectPassengers();
+        DragonOrders.clearAll(dragon);
+        dragon.setCommand(2);
+        dragon.setInSittingPose(false);
+        dragon.setFlying(false);
+        dragon.setHovering(false);
+        dragon.getNavigation().stop();
+        dragon.setDeltaMovement(Vec3.ZERO);
+        dragon.fallDistance = 0;
+    }
+
+    private static void teleport(ServerPlayer player, DragonBaseEntity dragon) {
+        String name = dragon.getName().getString();
+        prepare(dragon);
+        ServerLevel level = player.serverLevel();
+        Vec3 spot = landingSpot(player, dragon.getBbWidth());
         Level from = dragon.level();
-        boolean moved = dragon.teleportTo(level, spot.x, y, spot.z, Set.of(), player.getYRot(), 0);
+        boolean moved = dragon.teleportTo(level, spot.x, spot.y, spot.z, Set.of(), player.getYRot(), 0);
         if (!moved) {
             player.displayClientMessage(Component.translatable("controlurdragon.bring.failed", name).withStyle(ChatFormatting.RED), true);
             return;

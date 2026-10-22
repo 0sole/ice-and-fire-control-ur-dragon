@@ -30,14 +30,24 @@ Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyun
 | --- | --- |
 | Movement | Sit, Follow, Wander, Bring dragon |
 | Combat | Attack what you looked at, Stop attacking, Guard area |
-| Behavior | Normal, Defensive (only fights back), Passive (never attacks) |
+| Behavior | Stance, attack style, what to do when badly hurt, stand up when hit, break blocks |
 | Other | Carry / Drop a creature, Rename |
 
-The wheel does not pause or blur the game, and you can keep walking while it is open. Right click goes back one step.
+Behavior settings are saved per dragon:
 
-**Bring dragon** teleports a dragon to you from anywhere, even from unloaded chunks or another dimension. It asks for a second click and has a 30 minute cooldown.
+- **Stance:** Normal, Defensive (only fights what attacks it or you), Passive (never starts a fight), Aggressive (attacks anything it sees, except you and your pets)
+- **Attack style:** Mixed, Breath only, Bite only
+- **When badly hurt:** Keep fighting, Flee, Come to me, or go into an empty Dragon Horn in your inventory
+- **Stand up when hit:** a sitting dragon gets up and fights back
+- **Break blocks:** turn Ice and Fire's block breaking off for this dragon
 
-**Carry** makes the dragon pick up a creature and hold it under its feet. The carried creature takes no damage, so it can't suffocate or die from the fall when it is dropped. Works while riding too.
+The wheel does not pause or blur the game, and you can keep walking while it is open. Right click goes back one step. Targets are picked with a little aim assist, and grass or flowers don't block the aim.
+
+With Curios installed the whistle also works from the necklace slot.
+
+**Bring dragon** brings a dragon to you from anywhere, even from unloaded chunks or another dimension. A dragon in an unloaded chunk is brought back from the backup taken when its chunk unloaded, and the old copy is dropped if that chunk loads again, so it never duplicates. It asks for a second click and has a 30 minute cooldown.
+
+**Carry** makes the dragon pick up whatever is under it (or fly to the creature you look at) and hold it under its feet. Players can be carried too. Carried creatures take no damage, and keep that protection for 2 seconds after being dropped; players don't get this protection. Works while riding too.
 
 **Hotkeys** for every dragon of yours within 128 blocks:
 
@@ -47,7 +57,7 @@ The wheel does not pause or blur the game, and you can keep walking while it is 
 | `H` | Follow |
 | `J` | Guard the area you stand in |
 | `N` | Stop attacking |
-| `K` | Carry what you look at / drop it |
+| `K` | Carry what is under your dragon / drop it |
 
 All keys can be changed under Options → Controls.
 

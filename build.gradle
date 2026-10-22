@@ -67,7 +67,7 @@ configurations {
 }
 
 dependencies {
-    compileOnly files("libs/${iaf_jar}", "libs/${uranus_jar}")
+    compileOnly files("libs/${iaf_jar}", "libs/${uranus_jar}", "libs/${curios_jar}")
     localRuntime files("libs/${iaf_jar}", "libs/${uranus_jar}", "libs/${jupiter_jar}", "libs/${curios_jar}")
 }
 

@@ -7,12 +7,18 @@ import com.osole.controlurdragon.network.GroupOrderPayload;
 import com.osole.controlurdragon.network.RequestDragonListPayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
+import net.minecraft.client.player.Input;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -21,6 +27,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.MovementInputUpdateEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
@@ -41,6 +48,7 @@ public final class ClientEvents {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, CATEGORY);
 
     private static final double TARGET_RANGE = 96D;
+    private static final double AIM_ASSIST_DEGREES = 6D;
 
     private ClientEvents() {
     }
@@ -100,6 +108,11 @@ public final class ClientEvents {
             }
         }
 
+        @SubscribeEvent
+        public static void onMovementInput(MovementInputUpdateEvent event) {
+            if (Minecraft.getInstance().screen instanceof DragonWheelScreen) walkWhileOpen(event.getEntity(), event.getInput());
+        }
+
         private static boolean canOrder(Minecraft minecraft) {
             if (minecraft.player == null || minecraft.screen != null) return false;
             if (!DragonWhistleItem.isCarriedBy(minecraft.player)) {
@@ -110,20 +123,75 @@ public final class ClientEvents {
         }
     }
 
+    private static boolean isCandidate(Player player, Entity entity) {
+        if (entity instanceof PartEntity<?> part) entity = part.getParent();
+        if (!(entity instanceof LivingEntity living) || !living.isAlive() || living.isSpectator()) return false;
+        if (living == player || living == player.getVehicle()) return false;
+        return !(living instanceof TamableAnimal pet && pet.isOwnedBy(player));
+    }
+
+    private static boolean canSee(Player player, Vec3 eye, Vec3 point) {
+        return player.level().clip(new ClipContext(eye, point, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player))
+                .getType() == HitResult.Type.MISS;
+    }
+
     static LivingEntity lookedAt(Player player) {
         Vec3 eye = player.getEyePosition();
         Vec3 look = player.getViewVector(1F);
         double range = TARGET_RANGE;
-        HitResult block = player.pick(range, 1F, false);
-        if (block.getType() != HitResult.Type.MISS) range = block.getLocation().distanceTo(eye);
-        Vec3 end = eye.add(look.scale(range));
+        BlockHitResult wall = player.level().clip(new ClipContext(eye, eye.add(look.scale(range)),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        if (wall.getType() != HitResult.Type.MISS) range = wall.getLocation().distanceTo(eye);
+
         AABB box = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1D);
-        EntityHitResult hit = ProjectileUtil.getEntityHitResult(player, eye, end, box,
-                e -> !e.isSpectator() && e.isPickable() && e != player.getVehicle()
-                        && !(e instanceof PartEntity<?> part && part.getParent() == player.getVehicle()), range * range);
-        if (hit == null) return null;
-        Entity entity = hit.getEntity();
-        if (entity instanceof PartEntity<?> part) entity = part.getParent();
-        return entity instanceof LivingEntity living && living.isAlive() ? living : null;
+        EntityHitResult hit = ProjectileUtil.getEntityHitResult(player, eye, eye.add(look.scale(range)), box,
+                e -> e.isPickable() && isCandidate(player, e), range * range);
+        if (hit != null) {
+            Entity entity = hit.getEntity();
+            if (entity instanceof PartEntity<?> part) entity = part.getParent();
+            if (entity instanceof LivingEntity living) return living;
+        }
+
+        LivingEntity best = null;
+        double bestAngle = AIM_ASSIST_DEGREES * Mth.DEG_TO_RAD;
+        for (LivingEntity entity : player.level().getEntitiesOfClass(LivingEntity.class, player.getBoundingBox().inflate(TARGET_RANGE),
+                e -> isCandidate(player, e))) {
+            Vec3 center = entity.getBoundingBox().getCenter();
+            Vec3 toEntity = center.subtract(eye);
+            double distance = toEntity.length();
+            if (distance < 0.5 || distance > TARGET_RANGE) continue;
+            double size = Math.atan2(entity.getBbWidth() * 0.5, distance);
+            double angle = Math.acos(Mth.clamp(look.dot(toEntity.scale(1 / distance)), -1, 1)) - size;
+            if (angle < bestAngle && canSee(player, eye, center)) {
+                bestAngle = angle;
+                best = entity;
+            }
+        }
+        return best;
+    }
+
+    private static boolean held(long window, KeyMapping key) {
+        InputConstants.Key bound = key.getKey();
+        if (bound.getType() == InputConstants.Type.MOUSE) return GLFW.glfwGetMouseButton(window, bound.getValue()) == GLFW.GLFW_PRESS;
+        return bound.getValue() != InputConstants.UNKNOWN.getValue() && InputConstants.isKeyDown(window, bound.getValue());
+    }
+
+    static void walkWhileOpen(Player player, Input input) {
+        Minecraft minecraft = Minecraft.getInstance();
+        long window = minecraft.getWindow().getWindow();
+        Options options = minecraft.options;
+        input.up = held(window, options.keyUp);
+        input.down = held(window, options.keyDown);
+        input.left = held(window, options.keyLeft);
+        input.right = held(window, options.keyRight);
+        input.jumping = held(window, options.keyJump);
+        input.shiftKeyDown = held(window, options.keyShift);
+        input.forwardImpulse = input.up == input.down ? 0F : input.up ? 1F : -1F;
+        input.leftImpulse = input.left == input.right ? 0F : input.left ? 1F : -1F;
+        if (input.shiftKeyDown) {
+            input.forwardImpulse *= 0.3F;
+            input.leftImpulse *= 0.3F;
+        }
+        if (input.up && held(window, options.keySprint) && !player.isSprinting()) player.setSprinting(true);
     }
 }

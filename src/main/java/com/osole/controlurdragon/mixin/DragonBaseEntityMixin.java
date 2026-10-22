@@ -2,6 +2,7 @@ package com.osole.controlurdragon.mixin;
 
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
 import com.osole.controlurdragon.Config;
+import com.osole.controlurdragon.behavior.DragonSettings;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,5 +18,11 @@ public abstract class DragonBaseEntityMixin {
         ci.cancel();
 
         self.hurt(self.damageSources().genericKill(), Float.MAX_VALUE);
+    }
+
+    @Inject(method = "randomizeAttacks", at = @At("TAIL"))
+    private void controlurdragon$keepAttackStyle(CallbackInfo ci) {
+        DragonBaseEntity self = (DragonBaseEntity) (Object) this;
+        if (!self.level().isClientSide()) DragonSettings.applyAttackStyle(self);
     }
 }

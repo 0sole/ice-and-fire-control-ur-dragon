@@ -11,7 +11,7 @@ public record DragonActionPayload(UUID dragon, Action action, String text, int v
     public static final int MAX_NAME_LENGTH = 32;
 
     public enum Action {
-        SIT, FOLLOW, WANDER, BRING, RENAME, RESTORE, ATTACK, STOP, GUARD, STANCE, CARRY, DROP, DELETE
+        SIT, FOLLOW, WANDER, BRING, RENAME, RESTORE, ATTACK, STOP, GUARD, SETTING, CARRY, DROP, DELETE
     }
 
     public DragonActionPayload(UUID dragon, Action action, String text) {

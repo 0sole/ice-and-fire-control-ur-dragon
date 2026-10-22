@@ -18,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
 import net.neoforged.neoforge.event.tick.EntityTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -41,13 +42,22 @@ public final class DragonBehaviorEvents {
 
     @SubscribeEvent
     public static void onLeave(EntityLeaveLevelEvent event) {
-        if (!event.getLevel().isClientSide() && event.getEntity() instanceof DragonBaseEntity dragon) DragonCarry.forget(dragon);
+        if (event.getLevel().isClientSide() || !(event.getEntity() instanceof DragonBaseEntity dragon)) return;
+        DragonCarry.forget(dragon);
+        DragonBehavior.forget(dragon);
     }
 
     @SubscribeEvent
     public static void onChangeTarget(LivingChangeTargetEvent event) {
         if (!(event.getEntity() instanceof DragonBaseEntity dragon) || dragon.level().isClientSide() || !dragon.isTame()) return;
         if (!DragonOrders.allowsTarget(dragon, event.getNewAboutToBeSetTarget())) event.setCanceled(true);
+    }
+
+    @SubscribeEvent
+    public static void onDamaged(LivingDamageEvent.Post event) {
+        if (event.getEntity() instanceof DragonBaseEntity dragon && !dragon.level().isClientSide()) {
+            DragonBehavior.onHurt(dragon, event.getSource());
+        }
     }
 
     @SubscribeEvent
@@ -68,9 +78,13 @@ public final class DragonBehaviorEvents {
         if (!(entity instanceof DragonBaseEntity dragon) || !dragon.isTame()) return;
 
         DragonCarry.tickDragon(dragon, level);
+        DragonBehavior.tickRetreat(dragon, level);
 
         if ((level.getGameTime() + dragon.getId()) % 10 != 0) return;
-        if (dragon.isModelDead() || dragon.isVehicle()) return;
+        if (dragon.isModelDead()) return;
+        if (!DragonSettings.matchesAttackStyle(dragon)) DragonSettings.applyAttackStyle(dragon);
+        if (dragon.isVehicle()) return;
+        if ((level.getGameTime() + dragon.getId()) % 20 == 0) DragonBehavior.tickAggressive(dragon, level);
 
         UUID targetId = DragonOrders.getAttackOrder(dragon);
         if (targetId != null) {

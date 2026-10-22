@@ -1,6 +1,5 @@
 package com.osole.controlurdragon.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -8,14 +7,14 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.osole.controlurdragon.behavior.DragonSettings;
+import com.osole.controlurdragon.behavior.DragonSettings.Setting;
 import com.osole.controlurdragon.network.DragonActionPayload;
 import com.osole.controlurdragon.network.DragonActionPayload.Action;
 import com.osole.controlurdragon.network.DragonEntry;
 import com.osole.controlurdragon.network.DragonListPayload;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.KeyMapping;
-import net.minecraft.client.Options;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -24,7 +23,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,30 +46,34 @@ public class DragonWheelScreen extends Screen {
     }
 
     private enum Kind {
-        ACTION, CATEGORY, BACK
+        ACTION, CATEGORY, SETTING, BACK
     }
 
-    private record Option(Kind kind, Action action, int value, Category category, Component label,
+    private record Option(Kind kind, Action action, int value, Category category, Setting setting, Component label,
                           boolean enabled, boolean active, boolean danger) {
         static Option action(Action action, int value, Component label, boolean enabled) {
-            return new Option(Kind.ACTION, action, value, null, label, enabled, false, false);
+            return new Option(Kind.ACTION, action, value, null, null, label, enabled, false, false);
         }
 
         static Option category(Category category) {
-            return new Option(Kind.CATEGORY, null, 0, category,
+            return new Option(Kind.CATEGORY, null, 0, category, null,
                     Component.translatable("controlurdragon.category." + category.name().toLowerCase(Locale.ROOT)), true, false, false);
         }
 
+        static Option setting(Setting setting, int value, Component label) {
+            return new Option(Kind.SETTING, Action.SETTING, value, null, setting, label, true, false, false);
+        }
+
         static Option back() {
-            return new Option(Kind.BACK, null, 0, null, Component.translatable("controlurdragon.action.back"), true, false, false);
+            return new Option(Kind.BACK, null, 0, null, null, Component.translatable("controlurdragon.action.back"), true, false, false);
         }
 
         Option asActive() {
-            return new Option(this.kind, this.action, this.value, this.category, this.label, false, true, this.danger);
+            return new Option(this.kind, this.action, this.value, this.category, this.setting, this.label, false, true, this.danger);
         }
 
         Option asDanger() {
-            return new Option(this.kind, this.action, this.value, this.category, this.label, this.enabled, this.active, true);
+            return new Option(this.kind, this.action, this.value, this.category, this.setting, this.label, this.enabled, this.active, true);
         }
     }
 
@@ -82,6 +84,7 @@ public class DragonWheelScreen extends Screen {
     private boolean debug;
     private DragonEntry selected;
     private Category category;
+    private Setting settingMenu;
     private Action confirming;
     private int hovered = -1;
 
@@ -111,24 +114,6 @@ public class DragonWheelScreen extends Screen {
 
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-        long window = this.minecraft.getWindow().getWindow();
-        Options options = this.minecraft.options;
-        for (KeyMapping key : new KeyMapping[]{options.keyUp, options.keyDown, options.keyLeft, options.keyRight,
-                options.keyJump, options.keySprint, options.keyShift}) {
-            InputConstants.Key bound = key.getKey();
-            boolean down;
-            if (bound.getType() == InputConstants.Type.MOUSE) {
-                down = GLFW.glfwGetMouseButton(window, bound.getValue()) == GLFW.GLFW_PRESS;
-            } else {
-                down = bound.getValue() != InputConstants.UNKNOWN.getValue() && InputConstants.isKeyDown(window, bound.getValue());
-            }
-            key.setDown(down);
-        }
     }
 
     private Component withCooldown(String key, long seconds) {
@@ -180,10 +165,20 @@ public class DragonWheelScreen extends Screen {
                 list.add(Option.action(Action.GUARD, 0, Component.translatable("controlurdragon.action.guard"), dragon.distance() >= 0));
             }
             case BEHAVIOR -> {
-                String[] stances = {"normal", "defensive", "passive"};
-                for (int i = 0; i < stances.length; i++) {
-                    Option option = Option.action(Action.STANCE, i, Component.translatable("controlurdragon.stance." + stances[i]), true);
-                    list.add(dragon.stance() == i ? option.asActive() : option);
+                if (this.settingMenu != null) {
+                    Setting setting = this.settingMenu;
+                    int current = dragon.setting(setting);
+                    for (int i = 0; i < DragonSettings.optionCount(setting); i++) {
+                        Option option = Option.setting(setting, i, Component.translatable(DragonSettings.valueKey(setting, i)));
+                        list.add(i == current ? option.asActive() : option);
+                    }
+                } else {
+                    for (Setting setting : Setting.values()) {
+                        int current = dragon.setting(setting);
+                        boolean toggle = DragonSettings.optionCount(setting) == 2;
+                        list.add(Option.setting(setting, toggle ? 1 - current : -1,
+                                Component.translatable(DragonSettings.nameKey(setting))));
+                    }
                 }
             }
             case OTHER -> {
@@ -193,7 +188,7 @@ public class DragonWheelScreen extends Screen {
                 } else {
                     list.add(Option.action(Action.CARRY, hasTarget ? this.target.getId() : -1, hasTarget
                             ? Component.translatable("controlurdragon.action.carry", targetName)
-                            : Component.translatable("controlurdragon.action.carry.none"), hasTarget && dragon.distance() >= 0));
+                            : Component.translatable("controlurdragon.action.carry.none"), dragon.distance() >= 0));
                 }
                 list.add(Option.action(Action.RENAME, 0, Component.translatable("controlurdragon.action.rename"), true));
                 if (this.debug) {
@@ -224,7 +219,8 @@ public class DragonWheelScreen extends Screen {
 
     private void goBack() {
         this.confirming = null;
-        if (this.category != null) this.category = null;
+        if (this.settingMenu != null) this.settingMenu = null;
+        else if (this.category != null) this.category = null;
         else if (this.selected != null) this.selected = null;
         else this.onClose();
     }
@@ -236,6 +232,7 @@ public class DragonWheelScreen extends Screen {
             if (index < this.dragons.size()) {
                 this.selected = this.dragons.get(index);
                 this.category = null;
+                this.settingMenu = null;
                 this.confirming = null;
             }
             return;
@@ -246,7 +243,18 @@ public class DragonWheelScreen extends Screen {
             case BACK -> this.goBack();
             case CATEGORY -> {
                 this.category = option.category();
+                this.settingMenu = null;
                 this.confirming = null;
+            }
+            case SETTING -> {
+                if (!option.enabled()) return;
+                if (option.value() < 0) {
+                    this.settingMenu = option.setting();
+                    return;
+                }
+                PacketDistributor.sendToServer(new DragonActionPayload(this.selected.id(), Action.SETTING,
+                        option.setting().name(), option.value()));
+                this.settingMenu = null;
             }
             case ACTION -> {
                 if (!option.enabled()) return;
@@ -300,6 +308,10 @@ public class DragonWheelScreen extends Screen {
         if (this.category != null) {
             heading = Component.empty().append(heading).append(Component.literal(" / ").withStyle(ChatFormatting.GRAY))
                     .append(Component.translatable("controlurdragon.category." + this.category.name().toLowerCase(Locale.ROOT)));
+            if (this.settingMenu != null) {
+                heading = Component.empty().append(heading).append(Component.literal(" / ").withStyle(ChatFormatting.GRAY))
+                        .append(Component.translatable(DragonSettings.nameKey(this.settingMenu)));
+            }
         }
         graphics.drawCenteredString(this.font, heading, (int) cx, (int) (cy - OUTER - 14), 0xFFFFFF);
 
@@ -338,7 +350,14 @@ public class DragonWheelScreen extends Screen {
             if (options != null) {
                 Option option = options.get(i);
                 int color = option.active() ? 0x77FF77 : option.enabled() ? 0xFFFFFF : 0x777777;
-                this.drawLabel(graphics, option.label(), x, y - 3, color);
+                if (option.kind() == Kind.SETTING && this.settingMenu == null) {
+                    Setting setting = option.setting();
+                    this.drawLabel(graphics, option.label(), x, y - 7, color);
+                    this.drawLabel(graphics, Component.translatable(DragonSettings.valueKey(setting, this.selected.setting(setting))),
+                            x, y + 2, 0xE0B060);
+                } else {
+                    this.drawLabel(graphics, option.label(), x, y - 3, color);
+                }
             } else {
                 DragonEntry dragon = this.dragons.get(i);
                 this.drawLabel(graphics, Component.literal(shorten(dragon.name(), 14)), x, y - 7, typeColor(dragon.type()));
@@ -369,7 +388,7 @@ public class DragonWheelScreen extends Screen {
         graphics.drawCenteredString(this.font, first, cx, y, 0xDDDDDD);
         if (dragon.loaded()) {
             Component second = stateLine(dragon).copy().append(" · ").append(Component.translatable(
-                    "controlurdragon.stance." + new String[]{"normal", "defensive", "passive"}[Mth.clamp(dragon.stance(), 0, 2)]));
+                    DragonSettings.valueKey(Setting.STANCE, dragon.setting(Setting.STANCE))));
             graphics.drawCenteredString(this.font, second, cx, y + 10, 0xAAAAAA);
         }
     }

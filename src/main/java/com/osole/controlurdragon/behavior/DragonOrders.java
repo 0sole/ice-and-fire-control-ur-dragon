@@ -24,7 +24,7 @@ public final class DragonOrders {
     }
 
     public enum Stance {
-        NORMAL, DEFENSIVE, PASSIVE;
+        NORMAL, DEFENSIVE, PASSIVE, AGGRESSIVE;
 
         public static Stance byId(int id) {
             Stance[] values = values();
@@ -55,9 +55,9 @@ public final class DragonOrders {
 
     public static boolean allowsTarget(DragonBaseEntity dragon, LivingEntity target) {
         if (target == null || ordering) return true;
-        if (DragonCarry.isCarried(target)) return false;
+        if (DragonCarry.isCarried(target) || DragonBehavior.isRetreating(dragon)) return false;
         return switch (getStance(dragon)) {
-            case NORMAL -> true;
+            case NORMAL, AGGRESSIVE -> true;
             case PASSIVE -> false;
             case DEFENSIVE -> isAggressor(dragon, target);
         };

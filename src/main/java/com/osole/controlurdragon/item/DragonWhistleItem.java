@@ -1,5 +1,6 @@
 package com.osole.controlurdragon.item;
 
+import com.osole.controlurdragon.compat.CuriosCompat;
 import com.osole.controlurdragon.registry.ModItems;
 import com.osole.controlurdragon.server.DragonActions;
 import net.minecraft.network.chat.Component;
@@ -25,7 +26,7 @@ public class DragonWhistleItem extends Item {
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             if (inventory.getItem(i).is(ModItems.DRAGON_WHISTLE.get())) return true;
         }
-        return false;
+        return CuriosCompat.isEquipped(player, ModItems.DRAGON_WHISTLE.get());
     }
 
     @Override

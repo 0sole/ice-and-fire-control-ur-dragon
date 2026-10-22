@@ -5,12 +5,16 @@ import com.osole.controlurdragon.Config;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 
+import net.minecraft.world.phys.Vec3;
+
 import java.util.Optional;
+import java.util.UUID;
 
 public final class DragonRestorer {
     private DragonRestorer() {
@@ -45,37 +49,61 @@ public final class DragonRestorer {
         return error;
     }
 
+    public static final String GENERATION_TAG = "controlurdragon_generation";
+
+    public static int generationOf(Entity entity) {
+        return entity.getPersistentData().getInt(GENERATION_TAG);
+    }
+
+    public static boolean isLoadedAnywhere(MinecraftServer server, UUID id) {
+        for (ServerLevel level : server.getAllLevels()) {
+            if (level.getEntity(id) != null) return true;
+        }
+        return false;
+    }
+
     public static Component restore(ServerPlayer player, DragonRecord record) {
         if (record.state != DragonRecord.State.LOST)
             return Component.translatable("controlurdragon.restore.not_lost", record.state.name());
-        if (record.snapshot.isEmpty())
-            return Component.translatable("controlurdragon.restore.no_snapshot");
+        Spawned result = spawnFromSnapshot(player, record, player.position().add(0, 1, 0));
+        if (result.error() != null) return result.error();
+        DragonBaseEntity dragon = result.dragon();
+        dragon.setHealth(Math.max(dragon.getHealth(), dragon.getMaxHealth() * 0.25F));
+        return null;
+    }
 
-        for (ServerLevel level : player.server.getAllLevels()) {
-            if (level.getEntity(record.dragonId) != null)
-                return Component.translatable("controlurdragon.restore.still_exists");
+    public record Spawned(DragonBaseEntity dragon, Component error) {
+        static Spawned failed(Component error) {
+            return new Spawned(null, error);
         }
+    }
+
+    public static Spawned spawnFromSnapshot(ServerPlayer player, DragonRecord record, Vec3 position) {
+        if (record.snapshot.isEmpty()) return Spawned.failed(Component.translatable("controlurdragon.restore.no_snapshot"));
+        if (isLoadedAnywhere(player.server, record.dragonId)) return Spawned.failed(Component.translatable("controlurdragon.restore.still_exists"));
 
         Optional<EntityType<?>> type = BuiltInRegistries.ENTITY_TYPE.getOptional(ResourceLocation.parse(record.entityType));
-        if (type.isEmpty()) return Component.translatable("controlurdragon.restore.unknown_type", record.entityType);
+        if (type.isEmpty()) return Spawned.failed(Component.translatable("controlurdragon.restore.unknown_type", record.entityType));
 
         ServerLevel level = player.serverLevel();
         Entity entity = type.get().create(level);
         if (!(entity instanceof DragonBaseEntity dragon))
-            return Component.translatable("controlurdragon.restore.unknown_type", record.entityType);
+            return Spawned.failed(Component.translatable("controlurdragon.restore.unknown_type", record.entityType));
 
         dragon.load(record.snapshot.copy());
         dragon.setUUID(record.dragonId);
-        dragon.moveTo(player.getX(), player.getY() + 1, player.getZ(), player.getYRot(), 0);
-        dragon.setHealth(Math.max(dragon.getHealth(), dragon.getMaxHealth() * 0.25F));
+        record.generation++;
+        dragon.getPersistentData().putInt(GENERATION_TAG, record.generation);
+        dragon.moveTo(position.x, position.y, position.z, player.getYRot(), 0);
         dragon.setDeltaMovement(0, 0, 0);
         dragon.fallDistance = 0;
 
-        if (!level.addFreshEntity(dragon))
-            return Component.translatable("controlurdragon.restore.spawn_failed");
-
+        if (!level.addFreshEntity(dragon)) {
+            record.generation--;
+            return Spawned.failed(Component.translatable("controlurdragon.restore.spawn_failed"));
+        }
         record.state = DragonRecord.State.ALIVE;
         DragonRecordsData.get(player.server).setDirty();
-        return null;
+        return new Spawned(dragon, null);
     }
 }

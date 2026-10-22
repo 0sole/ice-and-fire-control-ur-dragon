@@ -2,17 +2,19 @@ package com.osole.controlurdragon.behavior;
 
 import com.iafenvoy.iceandfire.entity.DragonBaseEntity;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.RelativeMovement;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.Tags;
 
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +25,8 @@ public final class DragonCarry {
     private static final Map<UUID, UUID> CARRYING = new ConcurrentHashMap<>();
     private static final Map<UUID, UUID> CARRIED_BY = new ConcurrentHashMap<>();
     private static final Map<UUID, Pickup> PICKUPS = new ConcurrentHashMap<>();
-    private static final Set<UUID> FALLING = ConcurrentHashMap.newKeySet();
+    private static final int FALL_PROTECTION_TICKS = 40;
+    private static final Map<UUID, Long> FALLING = new ConcurrentHashMap<>();
 
     private record Pickup(UUID target, long expires) {
     }
@@ -37,7 +40,7 @@ public final class DragonCarry {
 
     public static boolean canCarry(DragonBaseEntity dragon, Entity entity) {
         if (!(entity instanceof LivingEntity living) || !living.isAlive() || entity == dragon) return false;
-        if (entity instanceof Player || entity instanceof DragonBaseEntity) return false;
+        if (entity instanceof DragonBaseEntity || entity.isSpectator() || entity.getVehicle() == dragon) return false;
         if (entity.getType().is(Tags.EntityTypes.BOSSES)) return false;
         UUID carrier = CARRIED_BY.get(entity.getUUID());
         if (carrier != null && !carrier.equals(dragon.getUUID())) return false;
@@ -65,7 +68,8 @@ public final class DragonCarry {
     }
 
     public static boolean isProtected(Entity entity) {
-        return CARRIED_BY.containsKey(entity.getUUID()) || FALLING.contains(entity.getUUID());
+        if (entity instanceof Player) return false;
+        return CARRIED_BY.containsKey(entity.getUUID()) || FALLING.containsKey(entity.getUUID());
     }
 
     public static Entity getCarried(DragonBaseEntity dragon) {
@@ -82,7 +86,7 @@ public final class DragonCarry {
     public static LivingEntity findBelow(DragonBaseEntity dragon) {
         float reach = reach(dragon);
         AABB box = dragon.getBoundingBox().expandTowards(0, -reach - 3, 0).inflate(reach * 0.5F, 0, reach * 0.5F);
-        return dragon.level().getEntitiesOfClass(LivingEntity.class, box, e -> canCarry(dragon, e)).stream()
+        return dragon.level().getEntitiesOfClass(LivingEntity.class, box, e -> e != dragon.getOwner() && canCarry(dragon, e)).stream()
                 .min(Comparator.comparingDouble(e -> distanceToFeet(dragon, e))).orElse(null);
     }
 
@@ -106,6 +110,7 @@ public final class DragonCarry {
     private static void grab(DragonBaseEntity dragon, LivingEntity target) {
         PICKUPS.remove(dragon.getUUID());
         FALLING.remove(target.getUUID());
+        if (target.isSleeping()) target.stopSleeping();
         target.stopRiding();
         target.ejectPassengers();
         CARRYING.put(dragon.getUUID(), target.getUUID());
@@ -131,7 +136,7 @@ public final class DragonCarry {
             carried.fallDistance = 0;
             carried.setDeltaMovement(dragon.getDeltaMovement().scale(0.3));
             carried.setOnGround(false);
-            FALLING.add(id);
+            if (!(carried instanceof Player)) FALLING.put(id, level.getGameTime() + FALL_PROTECTION_TICKS);
         }
         return true;
     }
@@ -141,7 +146,7 @@ public final class DragonCarry {
         UUID id = CARRYING.remove(dragon.getUUID());
         if (id != null) {
             CARRIED_BY.remove(id);
-            FALLING.add(id);
+            FALLING.put(id, dragon.level().getGameTime() + FALL_PROTECTION_TICKS);
         }
     }
 
@@ -162,7 +167,11 @@ public final class DragonCarry {
         if (!level.noCollision(carried, carried.getDimensions(carried.getPose()).makeBoundingBox(spot))) {
             spot = new Vec3(dragon.getX(), dragon.getY(), dragon.getZ());
         }
-        carried.noPhysics = !(carried instanceof Player);
+        if (carried instanceof ServerPlayer player) {
+            player.connection.teleport(spot.x, spot.y, spot.z, 0F, 0F, EnumSet.of(RelativeMovement.X_ROT, RelativeMovement.Y_ROT));
+            return;
+        }
+        carried.noPhysics = true;
         carried.moveTo(spot.x, spot.y, spot.z, dragon.getYRot(), carried.getXRot());
         carried.setDeltaMovement(dragon.getDeltaMovement());
         carried.fallDistance = 0;
@@ -189,8 +198,9 @@ public final class DragonCarry {
     }
 
     public static void tickFalling(Entity entity) {
-        if (!FALLING.contains(entity.getUUID())) return;
-        if (entity.onGround() || entity.isInWater() || entity.isPassenger() || !entity.isAlive()) {
+        Long until = FALLING.get(entity.getUUID());
+        if (until == null) return;
+        if (entity.level().getGameTime() > until || entity.onGround() || entity.isInWater() || entity.isPassenger() || !entity.isAlive()) {
             FALLING.remove(entity.getUUID());
         } else {
             entity.fallDistance = 0;
