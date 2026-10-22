@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "Aus",
   "controlurdragon.low_health.flee": "%s ist schwer verletzt und flieht",
   "controlurdragon.low_health.come": "%s ist schwer verletzt und kommt zu dir",
-  "controlurdragon.low_health.horn": "%s war schwer verletzt und ist in dein Drachenhorn gegangen"
+  "controlurdragon.low_health.horn": "%s war schwer verletzt und ist in dein Drachenhorn gegangen",
+  "key.controlurdragon.sit_all": "Alle Drachen: Sitz",
+  "controlurdragon.menu.all": "Alle Drachen",
+  "controlurdragon.menu.all_hint": "Alle deine Drachen in der Nähe",
+  "controlurdragon.group.order.sit": "Sitz",
+  "controlurdragon.group.order.follow": "Folgen",
+  "controlurdragon.group.order.guard": "Hier bewachen",
+  "controlurdragon.group.sit": "%s Drache(n) sitzen"
 }

@@ -294,6 +294,14 @@ public final class DragonActions {
                 }
                 tell(player, Component.translatable("controlurdragon.group.guard", dragons.size(), Config.GUARD_RADIUS.get()));
             }
+            case SIT -> {
+                for (DragonBaseEntity dragon : dragons) {
+                    DragonOrders.clearAll(dragon);
+                    DragonCarry.release(dragon);
+                    dragon.setCommand(1);
+                }
+                tell(player, Component.translatable("controlurdragon.group.sit", dragons.size()));
+            }
             case STOP -> {
                 for (DragonBaseEntity dragon : dragons) DragonOrders.stop(dragon);
                 tell(player, Component.translatable("controlurdragon.group.stop", dragons.size()));

@@ -38,6 +38,8 @@ public final class ClientEvents {
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, CATEGORY);
     public static final KeyMapping ATTACK_ALL = new KeyMapping("key.controlurdragon.attack_all",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY);
+    public static final KeyMapping SIT_ALL = new KeyMapping("key.controlurdragon.sit_all",
+            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_Y, CATEGORY);
     public static final KeyMapping FOLLOW_ALL = new KeyMapping("key.controlurdragon.follow_all",
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY);
     public static final KeyMapping GUARD_ALL = new KeyMapping("key.controlurdragon.guard_all",
@@ -58,6 +60,7 @@ public final class ClientEvents {
         @SubscribeEvent
         public static void registerKeys(RegisterKeyMappingsEvent event) {
             event.register(OPEN_MENU);
+            event.register(SIT_ALL);
             event.register(ATTACK_ALL);
             event.register(FOLLOW_ALL);
             event.register(GUARD_ALL);
@@ -88,6 +91,10 @@ public final class ClientEvents {
                     continue;
                 }
                 PacketDistributor.sendToServer(new GroupOrderPayload(GroupOrderPayload.Order.ATTACK, target.getId()));
+            }
+            while (SIT_ALL.consumeClick()) {
+                if (canOrder(minecraft))
+                    PacketDistributor.sendToServer(new GroupOrderPayload(GroupOrderPayload.Order.SIT, -1));
             }
             while (FOLLOW_ALL.consumeClick()) {
                 if (canOrder(minecraft))

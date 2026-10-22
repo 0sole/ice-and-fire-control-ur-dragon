@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record GroupOrderPayload(Order order, int targetId) implements CustomPacketPayload {
     public enum Order {
-        ATTACK, FOLLOW, GUARD, STOP, CARRY
+        ATTACK, FOLLOW, GUARD, STOP, CARRY, SIT
     }
 
     public static final Type<GroupOrderPayload> TYPE = new Type<>(ControlUrDragon.id("group_order"));

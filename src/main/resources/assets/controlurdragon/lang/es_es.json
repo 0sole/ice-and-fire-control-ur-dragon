@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "No",
   "controlurdragon.low_health.flee": "%s está muy herido y huye",
   "controlurdragon.low_health.come": "%s está muy herido y viene hacia ti",
-  "controlurdragon.low_health.horn": "%s estaba muy herido y entró en tu Cuerno de dragón"
+  "controlurdragon.low_health.horn": "%s estaba muy herido y entró en tu Cuerno de dragón",
+  "key.controlurdragon.sit_all": "Todos los dragones: sentarse",
+  "controlurdragon.menu.all": "Todos los dragones",
+  "controlurdragon.menu.all_hint": "Todos tus dragones cercanos",
+  "controlurdragon.group.order.sit": "Sentarse",
+  "controlurdragon.group.order.follow": "Seguir",
+  "controlurdragon.group.order.guard": "Proteger aquí",
+  "controlurdragon.group.sit": "%s dragón(es) sentados"
 }

@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "Kapalı",
   "controlurdragon.low_health.flee": "%s ağır yaralandı ve kaçıyor",
   "controlurdragon.low_health.come": "%s ağır yaralandı ve yanına geliyor",
-  "controlurdragon.low_health.horn": "%s ağır yaralandı ve Ejderha Borusu'na girdi"
+  "controlurdragon.low_health.horn": "%s ağır yaralandı ve Ejderha Borusu'na girdi",
+  "key.controlurdragon.sit_all": "Tüm ejderhalar: otur",
+  "controlurdragon.menu.all": "Tüm ejderhalar",
+  "controlurdragon.menu.all_hint": "Yakındaki tüm ejderhaların",
+  "controlurdragon.group.order.sit": "Otur",
+  "controlurdragon.group.order.follow": "Takip et",
+  "controlurdragon.group.order.guard": "Burayı koru",
+  "controlurdragon.group.sit": "%s ejderha oturuyor"
 }

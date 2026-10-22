@@ -184,6 +184,12 @@ public final class DragonBehavior {
             }
             case AIR -> {
                 if (!dragon.isFlying() && !dragon.isHovering() && dragon.isAllowedToTriggerFlight()) dragon.setHovering(true);
+                LivingEntity target = dragon.getTarget();
+                double range = 14 + dragon.getDragonStage() * 3;
+                if (DragonSettings.rangedFromAir(dragon) && (dragon.isFlying() || dragon.isHovering())
+                        && dragon.distanceTo(target) <= range + 16 && dragon.hasLineOfSight(target)) {
+                    dragon.breathAttack(target.getX(), target.getY() + target.getBbHeight() * 0.5, target.getZ(), true);
+                }
             }
             default -> {
             }
@@ -203,5 +209,13 @@ public final class DragonBehavior {
         if (time == null) return;
         if (entity.level().getGameTime() - time <= 1) entity.clearFire();
         else FRIENDLY_FIRE.remove(entity.getUUID());
+    }
+
+    public static Vec3 standoffPoint(DragonBaseEntity dragon, LivingEntity target) {
+        if (!DragonSettings.rangedFromAir(dragon)) return null;
+        double range = 14 + dragon.getDragonStage() * 3;
+        double angle = Math.atan2(dragon.getZ() - target.getZ(), dragon.getX() - target.getX()) + 0.2;
+        double height = target.getY() + target.getBbHeight() + 6 + dragon.getDragonStage() * 2;
+        return new Vec3(target.getX() + Math.cos(angle) * range, height, target.getZ() + Math.sin(angle) * range);
     }
 }

@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "Desligado",
   "controlurdragon.low_health.flee": "%s está muito ferido e foge",
   "controlurdragon.low_health.come": "%s está muito ferido e vem até você",
-  "controlurdragon.low_health.horn": "%s estava muito ferido e entrou no seu Chifre de Dragão"
+  "controlurdragon.low_health.horn": "%s estava muito ferido e entrou no seu Chifre de Dragão",
+  "key.controlurdragon.sit_all": "Todos os dragões: sentar",
+  "controlurdragon.menu.all": "Todos os dragões",
+  "controlurdragon.menu.all_hint": "Todos os seus dragões por perto",
+  "controlurdragon.group.order.sit": "Sentar",
+  "controlurdragon.group.order.follow": "Seguir",
+  "controlurdragon.group.order.guard": "Proteger aqui",
+  "controlurdragon.group.sit": "%s dragão(ões) sentados"
 }

@@ -60,7 +60,8 @@ public final class DragonFollowLogic {
         LivingEntity pickup = DragonCarry.getPickupTarget(dragon);
         if (pickup != null) return new Vec3(pickup.getX(), pickup.getY() + pickup.getBbHeight() + 1.0, pickup.getZ());
 
-        if (dragon.getTarget() != null && dragon.getTarget().isAlive()) return null;
+        LivingEntity target = dragon.getTarget();
+        if (target != null && target.isAlive()) return DragonBehavior.standoffPoint(dragon, target);
 
         Entity carried = DragonCarry.getCarried(dragon);
         double extraHeight = carried == null ? 0 : carried.getBbHeight() + 2;

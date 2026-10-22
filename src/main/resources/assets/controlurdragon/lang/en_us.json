@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "Off",
   "controlurdragon.low_health.flee": "%s is badly hurt and flees",
   "controlurdragon.low_health.come": "%s is badly hurt and comes to you",
-  "controlurdragon.low_health.horn": "%s was badly hurt and went into your Dragon Horn"
+  "controlurdragon.low_health.horn": "%s was badly hurt and went into your Dragon Horn",
+  "key.controlurdragon.sit_all": "All dragons: sit",
+  "controlurdragon.menu.all": "All dragons",
+  "controlurdragon.menu.all_hint": "Every dragon of yours nearby",
+  "controlurdragon.group.order.sit": "Sit",
+  "controlurdragon.group.order.follow": "Follow",
+  "controlurdragon.group.order.guard": "Guard here",
+  "controlurdragon.group.sit": "%s dragon(s) sit"
 }

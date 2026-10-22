@@ -13,6 +13,7 @@ import com.osole.controlurdragon.network.DragonActionPayload;
 import com.osole.controlurdragon.network.DragonActionPayload.Action;
 import com.osole.controlurdragon.network.DragonEntry;
 import com.osole.controlurdragon.network.DragonListPayload;
+import com.osole.controlurdragon.network.GroupOrderPayload;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
@@ -76,6 +77,9 @@ public class DragonWheelScreen extends Screen {
             return new Option(this.kind, this.action, this.value, this.category, this.setting, this.label, this.enabled, this.active, true);
         }
     }
+
+    private static final GroupOrderPayload.Order[] GROUP_ORDERS = {
+            GroupOrderPayload.Order.SIT, GroupOrderPayload.Order.FOLLOW, GroupOrderPayload.Order.GUARD};
 
     private final LivingEntity target;
     private List<DragonEntry> dragons = new ArrayList<>();
@@ -201,9 +205,18 @@ public class DragonWheelScreen extends Screen {
         return list;
     }
 
+    private int topCount() {
+        return GROUP_ORDERS.length + this.dragons.size();
+    }
+
+    private DragonEntry dragonAt(int index) {
+        int i = index - GROUP_ORDERS.length;
+        return i >= 0 && i < this.dragons.size() ? this.dragons.get(i) : null;
+    }
+
     private int sliceCount() {
         List<Option> options = this.options();
-        return options == null ? this.dragons.size() : options.size();
+        return options == null ? this.topCount() : options.size();
     }
 
     private int sliceAt(double mouseX, double mouseY, int count) {
@@ -229,8 +242,13 @@ public class DragonWheelScreen extends Screen {
         if (index < 0) return;
         List<Option> options = this.options();
         if (options == null) {
-            if (index < this.dragons.size()) {
-                this.selected = this.dragons.get(index);
+            if (index < GROUP_ORDERS.length) {
+                PacketDistributor.sendToServer(new GroupOrderPayload(GROUP_ORDERS[index], -1));
+                this.onClose();
+                return;
+            }
+            if (dragonAt(index) != null) {
+                this.selected = dragonAt(index);
                 this.category = null;
                 this.settingMenu = null;
                 this.confirming = null;
@@ -301,7 +319,7 @@ public class DragonWheelScreen extends Screen {
         float cx = this.width / 2F;
         float cy = this.height / 2F;
         List<Option> options = this.options();
-        int count = options == null ? this.dragons.size() : options.size();
+        int count = options == null ? this.topCount() : options.size();
         this.hovered = this.sliceAt(mouseX, mouseY, count);
 
         Component heading = this.selected == null ? this.title : Component.literal(this.selected.name()).withStyle(ChatFormatting.GOLD);
@@ -331,7 +349,8 @@ public class DragonWheelScreen extends Screen {
         for (int i = 0; i < count; i++) {
             int color;
             if (i == this.hovered) color = COLOR_HOVER;
-            else if (options == null) color = this.dragons.get(i).state() == DragonRecord.State.LOST ? COLOR_LOST : COLOR_BASE;
+            else if (options == null && i < GROUP_ORDERS.length) color = COLOR_CATEGORY;
+            else if (options == null) color = dragonAt(i).state() == DragonRecord.State.LOST ? COLOR_LOST : COLOR_BASE;
             else if (options.get(i).danger()) color = COLOR_DANGER;
             else if (options.get(i).kind() == Kind.CATEGORY) color = COLOR_CATEGORY;
             else color = options.get(i).enabled() || options.get(i).active() ? COLOR_BASE : COLOR_DISABLED;
@@ -358,8 +377,12 @@ public class DragonWheelScreen extends Screen {
                 } else {
                     this.drawLabel(graphics, option.label(), x, y - 3, color);
                 }
+            } else if (i < GROUP_ORDERS.length) {
+                this.drawLabel(graphics, Component.translatable("controlurdragon.menu.all"), x, y - 7, 0xE0B060);
+                this.drawLabel(graphics, Component.translatable("controlurdragon.group.order." + GROUP_ORDERS[i].name().toLowerCase(Locale.ROOT)),
+                        x, y + 2, 0xFFFFFF);
             } else {
-                DragonEntry dragon = this.dragons.get(i);
+                DragonEntry dragon = dragonAt(i);
                 this.drawLabel(graphics, Component.literal(shorten(dragon.name(), 14)), x, y - 7, typeColor(dragon.type()));
                 this.drawLabel(graphics, stateLine(dragon), x, y + 2, 0xBBBBBB);
             }
@@ -379,7 +402,11 @@ public class DragonWheelScreen extends Screen {
     }
 
     private void renderInfo(GuiGraphics graphics, int cx, int y, List<Option> options) {
-        DragonEntry dragon = options == null ? (this.hovered >= 0 ? this.dragons.get(this.hovered) : null) : this.selected;
+        if (options == null && this.hovered >= 0 && this.hovered < GROUP_ORDERS.length) {
+            graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.all_hint"), cx, y, 0xAAAAAA);
+            return;
+        }
+        DragonEntry dragon = options == null ? (this.hovered >= 0 ? dragonAt(this.hovered) : null) : this.selected;
         if (dragon == null) {
             graphics.drawCenteredString(this.font, Component.translatable("controlurdragon.menu.pick_dragon"), cx, y, 0xAAAAAA);
             return;

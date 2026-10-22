@@ -95,6 +95,10 @@ public final class DragonSettings {
         return style == AttackStyle.BREATH && dragon.getDragonStage() < 2 ? AttackStyle.MIXED : style;
     }
 
+    public static boolean rangedFromAir(DragonBaseEntity dragon) {
+        return attackPosition(dragon) == AttackPosition.AIR && effectiveStyle(dragon) != AttackStyle.BITE && dragon.getDragonStage() >= 2;
+    }
+
     public static void applyAttackStyle(DragonBaseEntity dragon) {
         AttackStyle style = effectiveStyle(dragon);
         switch (style) {
@@ -115,7 +119,10 @@ public final class DragonSettings {
             case GROUND -> dragon.usingGroundAttack = true;
             case AIR -> {
                 dragon.usingGroundAttack = false;
-                if (style != AttackStyle.BITE) dragon.airAttack = IafDragonAttacks.Air.HOVER_BLAST;
+                if (rangedFromAir(dragon)) {
+                    dragon.groundAttack = IafDragonAttacks.Ground.FIRE;
+                    dragon.airAttack = IafDragonAttacks.Air.HOVER_BLAST;
+                }
             }
             default -> {
             }
@@ -132,7 +139,8 @@ public final class DragonSettings {
         return styleOk && switch (attackPosition(dragon)) {
             case AUTO -> true;
             case GROUND -> dragon.usingGroundAttack;
-            case AIR -> !dragon.usingGroundAttack && (style == AttackStyle.BITE || dragon.airAttack == IafDragonAttacks.Air.HOVER_BLAST);
+            case AIR -> !dragon.usingGroundAttack && (!rangedFromAir(dragon)
+                    || dragon.airAttack == IafDragonAttacks.Air.HOVER_BLAST && dragon.groundAttack == IafDragonAttacks.Ground.FIRE);
         };
     }
 

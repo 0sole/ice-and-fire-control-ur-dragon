@@ -24,7 +24,7 @@ Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyun
 
 ## Features
 
-**Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. Pick a dragon, then a category:
+**Dragon Whistle.** Keep it anywhere in your inventory and press `V` (or right click it) to open the dragon wheel. The three slices at the top order all your dragons nearby to sit, follow or guard the spot you stand on. Pick a dragon for everything else, then a category:
 
 | Category | Orders |
 | --- | --- |
@@ -37,7 +37,7 @@ Behavior settings are saved per dragon:
 
 - **Stance:** Normal, Defensive (only fights what attacks it or you), Passive (never starts a fight), Aggressive (attacks anything it sees, except you and your pets)
 - **Attack style:** Mixed, Breath only, Bite only
-- **Attack from:** Automatic, Ground, or Air (stays at range and breathes from a distance instead of diving in)
+- **Attack from:** Automatic, Ground, or Air (circles the target at a safe distance and shoots fire, ice or lightning charges instead of diving in)
 - **When badly hurt:** Keep fighting, Flee, Come to me, or go into an empty Dragon Horn in your inventory
 - **Stand up when hit:** a sitting dragon gets up and fights back
 - **Break blocks:** turn Ice and Fire's block breaking off for this dragon
@@ -54,6 +54,7 @@ With Curios installed the whistle also works from the necklace slot.
 
 | Key | Order |
 | --- | --- |
+| `Y` | Sit |
 | `G` | Attack the creature you look at |
 | `H` | Follow |
 | `J` | Guard the area you stand in |

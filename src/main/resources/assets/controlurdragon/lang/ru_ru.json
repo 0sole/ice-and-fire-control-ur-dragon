@@ -123,5 +123,12 @@
   "controlurdragon.setting.break_blocks.off": "Выкл",
   "controlurdragon.low_health.flee": "%s тяжело ранен и убегает",
   "controlurdragon.low_health.come": "%s тяжело ранен и летит к вам",
-  "controlurdragon.low_health.horn": "%s тяжело ранен и укрылся в вашем Драконьем роге"
+  "controlurdragon.low_health.horn": "%s тяжело ранен и укрылся в вашем Драконьем роге",
+  "key.controlurdragon.sit_all": "Все драконы: сидеть",
+  "controlurdragon.menu.all": "Все драконы",
+  "controlurdragon.menu.all_hint": "Все ваши драконы рядом",
+  "controlurdragon.group.order.sit": "Сидеть",
+  "controlurdragon.group.order.follow": "За мной",
+  "controlurdragon.group.order.guard": "Охранять здесь",
+  "controlurdragon.group.sit": "Драконов сидит: %s"
 }
