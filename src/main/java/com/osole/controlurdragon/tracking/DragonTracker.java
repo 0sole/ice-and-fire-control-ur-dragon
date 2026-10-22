@@ -84,9 +84,21 @@ public final class DragonTracker {
     public static void onTick(EntityTickEvent.Post event) {
         if (!(event.getEntity().level() instanceof ServerLevel level) || !isTracked(event.getEntity())) return;
         DragonBaseEntity dragon = (DragonBaseEntity) event.getEntity();
-        if ((level.getGameTime() + dragon.getId()) % Config.SNAPSHOT_INTERVAL.get() != 0) return;
-        DragonRecord record = update(level, dragon, true);
-        if (record.state != DragonRecord.State.DEAD) record.state = DragonRecord.State.ALIVE;
+        long time = level.getGameTime() + dragon.getId();
+        if (time % Config.SNAPSHOT_INTERVAL.get() == 0 || time % 20 == 0 && needsRecord(level, dragon)) {
+            DragonRecord record = update(level, dragon, true);
+            if (record.state != DragonRecord.State.DEAD) record.state = DragonRecord.State.ALIVE;
+        }
+    }
+
+    private static boolean needsRecord(ServerLevel level, DragonBaseEntity dragon) {
+        DragonRecord record = DragonRecordsData.get(level.getServer()).get(dragon.getUUID());
+        return record == null || !dragon.getOwnerUUID().equals(record.ownerId);
+    }
+
+    public static void ensureTracked(ServerLevel level, DragonBaseEntity dragon) {
+        if (!isTracked(dragon) || dragon.isModelDead() || !needsRecord(level, dragon)) return;
+        update(level, dragon, true).state = DragonRecord.State.ALIVE;
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)

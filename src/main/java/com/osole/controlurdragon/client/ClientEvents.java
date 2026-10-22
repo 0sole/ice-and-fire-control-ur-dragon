@@ -55,7 +55,7 @@ public final class ClientEvents {
     private ClientEvents() {
     }
 
-    @EventBusSubscriber(modid = ControlUrDragon.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = ControlUrDragon.MODID, value = Dist.CLIENT)
     public static final class ModBus {
         @SubscribeEvent
         public static void registerKeys(RegisterKeyMappingsEvent event) {

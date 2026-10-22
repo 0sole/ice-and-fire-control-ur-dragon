@@ -13,6 +13,7 @@ import com.osole.controlurdragon.network.GroupOrderPayload;
 import com.osole.controlurdragon.tracking.DragonRecord;
 import com.osole.controlurdragon.tracking.DragonRecordsData;
 import com.osole.controlurdragon.tracking.DragonRestorer;
+import com.osole.controlurdragon.tracking.DragonTracker;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -69,6 +70,10 @@ public final class DragonActions {
         if (!DragonWhistleItem.isCarriedBy(player)) {
             tell(player, Component.translatable("controlurdragon.menu.no_whistle"));
             return;
+        }
+        for (DragonBaseEntity dragon : player.serverLevel().getEntitiesOfClass(DragonBaseEntity.class,
+                player.getBoundingBox().inflate(256), d -> d.isOwnedBy(player))) {
+            DragonTracker.ensureTracked(player.serverLevel(), dragon);
         }
         DragonRecordsData data = DragonRecordsData.get(player.server);
         String playerDimension = player.level().dimension().location().toString();
