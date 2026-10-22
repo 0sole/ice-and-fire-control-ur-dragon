@@ -1,0 +1,27 @@
+# Gradle / build
+.gradle/
+build/
+out/
+run/
+runs/
+repo/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse / VS Code
+.classpath
+.project
+.settings/
+bin/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Third-party mod jars are not committed (see libs/README.md)
+libs/*.jar

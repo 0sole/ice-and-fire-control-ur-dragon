@@ -1,0 +1,22 @@
+{
+  "item.controlurdragon.dragon_whistle": "Dragon Whistle",
+  "item.controlurdragon.dragon_whistle.tooltip": "Use to list your dragons",
+  "controlurdragon.list.empty": "You have no tracked dragons yet. Dragons are tracked once they are loaded.",
+  "controlurdragon.list.header": "Your dragons (%s):",
+  "controlurdragon.list.restore_button": "[Restore]",
+  "controlurdragon.state.alive": "alive",
+  "controlurdragon.state.unloaded": "unloaded",
+  "controlurdragon.state.stored": "in an item",
+  "controlurdragon.state.lost": "LOST",
+  "controlurdragon.state.dead": "dead",
+  "controlurdragon.unknown_dragon": "No dragon with that id is tracked.",
+  "controlurdragon.info.lost": "Removed without dying (%s). Removed by:",
+  "controlurdragon.restore.not_lost": "Only lost dragons can be restored (this one is: %s).",
+  "controlurdragon.restore.no_snapshot": "There is no backup for this dragon.",
+  "controlurdragon.restore.still_exists": "This dragon still exists in the world, so it was not duplicated.",
+  "controlurdragon.restore.unknown_type": "Unknown dragon type: %s",
+  "controlurdragon.restore.spawn_failed": "The dragon could not be placed here. Try an open area.",
+  "controlurdragon.restore.no_permission": "You can only restore your own dragons.",
+  "controlurdragon.restore.cooldown": "You can restore a dragon again in %s minute(s).",
+  "controlurdragon.restore.done": "%s has been restored."
+}

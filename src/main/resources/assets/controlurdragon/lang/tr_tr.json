@@ -1,0 +1,22 @@
+{
+  "item.controlurdragon.dragon_whistle": "Ejderha Düdüğü",
+  "item.controlurdragon.dragon_whistle.tooltip": "Ejderhalarını listelemek için kullan",
+  "controlurdragon.list.empty": "Henüz takip edilen ejderhan yok. Ejderhalar yüklendiklerinde takibe alınır.",
+  "controlurdragon.list.header": "Ejderhaların (%s):",
+  "controlurdragon.list.restore_button": "[Geri getir]",
+  "controlurdragon.state.alive": "hayatta",
+  "controlurdragon.state.unloaded": "yüklü değil",
+  "controlurdragon.state.stored": "eşyada",
+  "controlurdragon.state.lost": "KAYIP",
+  "controlurdragon.state.dead": "ölü",
+  "controlurdragon.unknown_dragon": "Bu kimlikte takip edilen bir ejderha yok.",
+  "controlurdragon.info.lost": "Ölmeden silindi (%s). Silen:",
+  "controlurdragon.restore.not_lost": "Sadece kayıp ejderhalar geri getirilebilir (bu ejderha: %s).",
+  "controlurdragon.restore.no_snapshot": "Bu ejderhanın yedeği yok.",
+  "controlurdragon.restore.still_exists": "Bu ejderha dünyada hâlâ var, kopyası oluşturulmadı.",
+  "controlurdragon.restore.unknown_type": "Bilinmeyen ejderha türü: %s",
+  "controlurdragon.restore.spawn_failed": "Ejderha buraya yerleştirilemedi. Açık bir alanda dene.",
+  "controlurdragon.restore.no_permission": "Sadece kendi ejderhalarını geri getirebilirsin.",
+  "controlurdragon.restore.cooldown": "%s dakika sonra tekrar ejderha geri getirebilirsin.",
+  "controlurdragon.restore.done": "%s geri getirildi."
+}
