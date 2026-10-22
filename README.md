@@ -78,13 +78,6 @@ Tamed Ice and Fire dragons disappearing without a trace is not just my problem. 
 - **Bring dragon.** Dragons left in unloaded chunks or other dimensions can be brought to you, and an outdated copy is dropped if its old chunk loads again.
 - **Into the horn.** A dragon can be set to go into an empty Dragon Horn in your inventory when it is badly hurt.
 
-## Crafting
-
-```
-String     Dragon bone   -
-Dragon bone    -        Dragon bone
-   -       Dragon bone  Iron ingot
-```
 
 ## Commands
 
