@@ -8,6 +8,7 @@ import java.util.Locale;
 
 public final class DragonSettings {
     private static final String ATTACK_STYLE = "controlurdragon_attack_style";
+    private static final String ATTACK_POSITION = "controlurdragon_attack_position";
     private static final String LOW_HEALTH = "controlurdragon_low_health";
     private static final String STAY_SEATED = "controlurdragon_stay_seated";
     private static final String NO_GRIEF = "controlurdragon_no_grief";
@@ -16,12 +17,16 @@ public final class DragonSettings {
         MIXED, BREATH, BITE
     }
 
+    public enum AttackPosition {
+        AUTO, GROUND, AIR
+    }
+
     public enum LowHealth {
         FIGHT, FLEE, COME, HORN
     }
 
     public enum Setting {
-        STANCE, ATTACK_STYLE, LOW_HEALTH, WAKE_ON_HIT, BREAK_BLOCKS
+        STANCE, ATTACK_STYLE, ATTACK_POSITION, LOW_HEALTH, WAKE_ON_HIT, BREAK_BLOCKS
     }
 
     private DragonSettings() {
@@ -34,6 +39,10 @@ public final class DragonSettings {
 
     public static AttackStyle attackStyle(DragonBaseEntity dragon) {
         return byId(AttackStyle.class, dragon.getPersistentData().getInt(ATTACK_STYLE));
+    }
+
+    public static AttackPosition attackPosition(DragonBaseEntity dragon) {
+        return byId(AttackPosition.class, dragon.getPersistentData().getInt(ATTACK_POSITION));
     }
 
     public static LowHealth lowHealth(DragonBaseEntity dragon) {
@@ -52,6 +61,7 @@ public final class DragonSettings {
         return switch (setting) {
             case STANCE -> DragonOrders.getStance(dragon).ordinal();
             case ATTACK_STYLE -> attackStyle(dragon).ordinal();
+            case ATTACK_POSITION -> attackPosition(dragon).ordinal();
             case LOW_HEALTH -> lowHealth(dragon).ordinal();
             case WAKE_ON_HIT -> wakesOnHit(dragon) ? 1 : 0;
             case BREAK_BLOCKS -> breaksBlocks(dragon) ? 1 : 0;
@@ -70,6 +80,10 @@ public final class DragonSettings {
                 data.putInt(ATTACK_STYLE, byId(AttackStyle.class, value).ordinal());
                 dragon.randomizeAttacks();
             }
+            case ATTACK_POSITION -> {
+                data.putInt(ATTACK_POSITION, byId(AttackPosition.class, value).ordinal());
+                dragon.randomizeAttacks();
+            }
             case LOW_HEALTH -> data.putInt(LOW_HEALTH, byId(LowHealth.class, value).ordinal());
             case WAKE_ON_HIT -> data.putBoolean(STAY_SEATED, value == 0);
             case BREAK_BLOCKS -> data.putBoolean(NO_GRIEF, value == 0);
@@ -82,7 +96,8 @@ public final class DragonSettings {
     }
 
     public static void applyAttackStyle(DragonBaseEntity dragon) {
-        switch (effectiveStyle(dragon)) {
+        AttackStyle style = effectiveStyle(dragon);
+        switch (style) {
             case BREATH -> {
                 dragon.groundAttack = IafDragonAttacks.Ground.FIRE;
                 if (dragon.airAttack == IafDragonAttacks.Air.TACKLE) {
@@ -96,13 +111,28 @@ public final class DragonSettings {
             default -> {
             }
         }
+        switch (attackPosition(dragon)) {
+            case GROUND -> dragon.usingGroundAttack = true;
+            case AIR -> {
+                dragon.usingGroundAttack = false;
+                if (style != AttackStyle.BITE) dragon.airAttack = IafDragonAttacks.Air.HOVER_BLAST;
+            }
+            default -> {
+            }
+        }
     }
 
     public static boolean matchesAttackStyle(DragonBaseEntity dragon) {
-        return switch (effectiveStyle(dragon)) {
+        AttackStyle style = effectiveStyle(dragon);
+        boolean styleOk = switch (style) {
             case MIXED -> true;
             case BREATH -> dragon.groundAttack == IafDragonAttacks.Ground.FIRE && dragon.airAttack != IafDragonAttacks.Air.TACKLE;
             case BITE -> dragon.groundAttack == IafDragonAttacks.Ground.BITE && dragon.airAttack == IafDragonAttacks.Air.TACKLE;
+        };
+        return styleOk && switch (attackPosition(dragon)) {
+            case AUTO -> true;
+            case GROUND -> dragon.usingGroundAttack;
+            case AIR -> !dragon.usingGroundAttack && (style == AttackStyle.BITE || dragon.airAttack == IafDragonAttacks.Air.HOVER_BLAST);
         };
     }
 
@@ -110,6 +140,7 @@ public final class DragonSettings {
         return switch (setting) {
             case STANCE -> DragonOrders.Stance.values().length;
             case ATTACK_STYLE -> AttackStyle.values().length;
+            case ATTACK_POSITION -> AttackPosition.values().length;
             case LOW_HEALTH -> LowHealth.values().length;
             case WAKE_ON_HIT, BREAK_BLOCKS -> 2;
         };
@@ -123,6 +154,7 @@ public final class DragonSettings {
         String name = switch (setting) {
             case STANCE -> DragonOrders.Stance.byId(value).name();
             case ATTACK_STYLE -> byId(AttackStyle.class, value).name();
+            case ATTACK_POSITION -> byId(AttackPosition.class, value).name();
             case LOW_HEALTH -> byId(LowHealth.class, value).name();
             case WAKE_ON_HIT, BREAK_BLOCKS -> value == 0 ? "OFF" : "ON";
         };

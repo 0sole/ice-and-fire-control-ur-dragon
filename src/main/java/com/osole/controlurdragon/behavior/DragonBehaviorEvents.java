@@ -62,7 +62,10 @@ public final class DragonBehaviorEvents {
 
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
-        if (!event.getEntity().level().isClientSide() && DragonCarry.isProtected(event.getEntity())) event.setCanceled(true);
+        if (event.getEntity().level().isClientSide()) return;
+        if (DragonCarry.isProtected(event.getEntity()) || DragonBehavior.isFriendlyFire(event.getEntity(), event.getSource())) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
@@ -75,14 +78,15 @@ public final class DragonBehaviorEvents {
         Entity entity = event.getEntity();
         if (!(entity.level() instanceof ServerLevel level)) return;
         DragonCarry.tickFalling(entity);
+        DragonBehavior.tickFriendlyFire(entity);
         if (!(entity instanceof DragonBaseEntity dragon) || !dragon.isTame()) return;
 
         DragonCarry.tickDragon(dragon, level);
         DragonBehavior.tickRetreat(dragon, level);
+        DragonBehavior.tickAttackPosition(dragon);
 
         if ((level.getGameTime() + dragon.getId()) % 10 != 0) return;
         if (dragon.isModelDead()) return;
-        if (!DragonSettings.matchesAttackStyle(dragon)) DragonSettings.applyAttackStyle(dragon);
         if (dragon.isVehicle()) return;
         if ((level.getGameTime() + dragon.getId()) % 20 == 0) DragonBehavior.tickAggressive(dragon, level);
 

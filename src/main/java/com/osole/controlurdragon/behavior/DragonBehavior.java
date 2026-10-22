@@ -18,6 +18,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -38,6 +39,7 @@ public final class DragonBehavior {
     }
 
     private static final Map<UUID, Retreat> RETREATS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> FRIENDLY_FIRE = new ConcurrentHashMap<>();
 
     private DragonBehavior() {
     }
@@ -167,5 +169,39 @@ public final class DragonBehavior {
         if (entity instanceof Player && !level.getServer().isPvpAllowed()) return false;
         return !(entity instanceof DragonBaseEntity other && other.isTame() && other.getOwnerUUID() != null
                 && other.getOwnerUUID().equals(dragon.getOwnerUUID()));
+    }
+
+    public static void tickAttackPosition(DragonBaseEntity dragon) {
+        if (dragon.getTarget() == null || dragon.getControllingPassenger() != null || dragon.isOrderedToSit() || isRetreating(dragon)) return;
+        if (!DragonSettings.matchesAttackStyle(dragon)) DragonSettings.applyAttackStyle(dragon);
+        switch (DragonSettings.attackPosition(dragon)) {
+            case GROUND -> {
+                if ((dragon.isFlying() || dragon.isHovering()) && !dragon.isInWater()) {
+                    dragon.setFlying(false);
+                    dragon.setHovering(false);
+                    dragon.setTackling(false);
+                }
+            }
+            case AIR -> {
+                if (!dragon.isFlying() && !dragon.isHovering() && dragon.isAllowedToTriggerFlight()) dragon.setHovering(true);
+            }
+            default -> {
+            }
+        }
+    }
+
+    public static boolean isFriendlyFire(LivingEntity victim, DamageSource source) {
+        if (!(source.getEntity() instanceof DragonBaseEntity attacker) || attacker == victim || attacker.getOwnerUUID() == null) return false;
+        UUID victimOwner = victim instanceof OwnableEntity ownable ? ownable.getOwnerUUID() : null;
+        if (!attacker.getOwnerUUID().equals(victimOwner)) return false;
+        FRIENDLY_FIRE.put(victim.getUUID(), victim.level().getGameTime());
+        return true;
+    }
+
+    public static void tickFriendlyFire(Entity entity) {
+        Long time = FRIENDLY_FIRE.get(entity.getUUID());
+        if (time == null) return;
+        if (entity.level().getGameTime() - time <= 1) entity.clearFire();
+        else FRIENDLY_FIRE.remove(entity.getUUID());
     }
 }

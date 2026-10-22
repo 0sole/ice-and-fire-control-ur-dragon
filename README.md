@@ -37,6 +37,7 @@ Behavior settings are saved per dragon:
 
 - **Stance:** Normal, Defensive (only fights what attacks it or you), Passive (never starts a fight), Aggressive (attacks anything it sees, except you and your pets)
 - **Attack style:** Mixed, Breath only, Bite only
+- **Attack from:** Automatic, Ground, or Air (stays at range and breathes from a distance instead of diving in)
 - **When badly hurt:** Keep fighting, Flee, Come to me, or go into an empty Dragon Horn in your inventory
 - **Stand up when hit:** a sitting dragon gets up and fights back
 - **Break blocks:** turn Ice and Fire's block breaking off for this dragon
@@ -60,6 +61,8 @@ With Curios installed the whistle also works from the necklace slot.
 | `K` | Carry what is under your dragon / drop it |
 
 All keys can be changed under Options → Controls.
+
+**No friendly fire.** Your dragons don't hurt each other or your other pets with breath or bites. Fire left burning on the ground still burns them.
 
 **Better following.** Dragons keep a distance that fits their size, run when they fall behind, fly straight instead of zigzagging, and land next to you.
 
