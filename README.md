@@ -1,26 +1,18 @@
 # IaF: Control Ur Dragon
 
-Command, protect and recover your Ice and Fire CE dragons.
+**An ARK-style dragon command wheel, group orders, per-dragon controls and lost dragon recovery for [Ice and Fire: Community Edition](https://github.com/IAFEnvoy/IceAndFire-CE).**
 
-Minecraft 1.21.1 · NeoForge 21.1 · Ice and Fire CE 2.1.4
+### [⬇ Download on CurseForge](https://www.curseforge.com/minecraft/mc-mods/iaf-control-ur-dragon)
 
-## Why this mod exists
+Minecraft 1.21.1 · NeoForge 21.1 · Requires Ice and Fire CE 2.1.4+ · Beta
 
-I'm 0sole. I was playing a big modpack with two tamed Ice and Fire dragons, one of them stage 4. We raided a dark forest camp full of barbarians, with Herobrine cultists casting blood magic around them. I turned around and my stage 4 dragon was just gone. Not dead, no corpse, no death message. A bit later the second one vanished the same way. I went to their last positions with the Dragon Care dragon phone and found nothing.
+Raising a dragon in Ice and Fire takes hours, yet the mod gives you only a few basic commands, and a tamed dragon can vanish to a bug and be gone for good. Control Ur Dragon gives you a proper way to command your Ice and Fire CE dragons and a way to get them back.
 
-I dug through the logs and the mods' source code. The best I could prove was that the dragons had been deleted from the world without dying. I couldn't prove which mod did it, and even if I could, there was no guarantee the right repo would ever fix it. I had already wanted a proper dragon control mod for Ice and Fire anyway, so I decided to build one myself: something that keeps a backup of every dragon, tells you who deleted it, lets you bring it back, and gives you real control over your dragons.
-
-### About AI
-
-I built this with AI. The idea, the features, the design decisions and all the testing in game are mine, and a lot of the code was written by Claude (Anthropic) while I directed it. I'm not sorry about that. It let me turn a bad evening in Minecraft into a mod that solves the problem for me and hopefully for you. If that is a dealbreaker for you, that's fair, and now you know.
-
-### Türkçe
-
-Ben 0sole. Büyük bir mod paketinde iki evcil Ice and Fire ejderhamla oynuyordum, biri 4. evredeydi. Kara ormanda barbarların kampına baskın yaptık, yanlarında kan büyüsü yapan Herobrine müritleri vardı. Arkamı döndüğümde 4. evre ejderham yoktu. Ölmemişti, ceset yoktu, ölüm mesajı yoktu. Biraz sonra diğeri de aynı şekilde kayboldu. Dragon Care'in dragon phone'u ile son konumlarına gittim, hiçbir şey yoktu.
-
-Logları ve modların kodlarını inceledim. Kanıtlayabildiğim tek şey ejderhaların ölmeden dünyadan silindiğiydi; hangi modun yaptığını kanıtlayamadım, bulsam bile ilgili reponun düzelteceğinin garantisi yoktu. Zaten Ice and Fire için düzgün bir ejderha kontrol modu yapmak istiyordum, ben de kendim yapmaya karar verdim.
-
-Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyundaki bütün testler benim; kodun büyük kısmını benim yönlendirmemle Claude (Anthropic) yazdı. Bundan pişman değilim.
+- **Dragon command wheel:** press `V` with the Dragon Whistle in your inventory to open an ARK-style radial menu for every dragon you own.
+- **Group orders:** make all your dragons nearby sit, follow or guard an area at once, from the wheel or with hotkeys.
+- **Per-dragon controls:** stance, attack style, attack from the ground or the air, what to do when badly hurt, and block breaking on or off for each dragon.
+- **Lost dragon recovery:** every tamed dragon is backed up; if one vanishes without dying you are told what removed it and can restore it with one click.
+- **Bring, carry and protect:** call a dragon to you from anywhere, let it carry creatures, and stop your dragons from hurting each other.
 
 ## Features
 
@@ -79,6 +71,24 @@ Tamed Ice and Fire dragons disappearing without a trace is not just my problem. 
 - **Into the horn.** A dragon can be set to go into an empty Dragon Horn in your inventory when it is badly hurt.
 
 
+## Why I made this mod
+
+I'm 0sole. I was playing a big modpack with two tamed Ice and Fire dragons, one of them stage 4. We raided a dark forest camp full of barbarians, with Herobrine cultists casting blood magic around them. I turned around and my stage 4 dragon was just gone. Not dead, no corpse, no death message. A bit later the second one vanished the same way. I went to their last positions with the Dragon Care dragon phone and found nothing.
+
+I dug through the logs and the mods' source code. The best I could prove was that the dragons had been deleted from the world without dying. I couldn't prove which mod did it, and even if I could, there was no guarantee the right repo would ever fix it. I had already wanted a proper dragon control mod for Ice and Fire anyway, so I decided to build one myself: something that keeps a backup of every dragon, tells you who deleted it, lets you bring it back, and gives you real control over your dragons.
+
+### About AI
+
+I built this with AI. The idea, the features, the design decisions and all the testing in game are mine, and a lot of the code was written by Claude (Anthropic) while I directed it. I'm not sorry about that. It let me turn a bad evening in Minecraft into a mod that solves the problem for me and hopefully for you. If that is a dealbreaker for you, that's fair, and now you know.
+
+### Türkçe
+
+Ben 0sole. Büyük bir mod paketinde iki evcil Ice and Fire ejderhamla oynuyordum, biri 4. evredeydi. Kara ormanda barbarların kampına baskın yaptık, yanlarında kan büyüsü yapan Herobrine müritleri vardı. Arkamı döndüğümde 4. evre ejderham yoktu. Ölmemişti, ceset yoktu, ölüm mesajı yoktu. Biraz sonra diğeri de aynı şekilde kayboldu. Dragon Care'in dragon phone'u ile son konumlarına gittim, hiçbir şey yoktu.
+
+Logları ve modların kodlarını inceledim. Kanıtlayabildiğim tek şey ejderhaların ölmeden dünyadan silindiğiydi; hangi modun yaptığını kanıtlayamadım, bulsam bile ilgili reponun düzelteceğinin garantisi yoktu. Zaten Ice and Fire için düzgün bir ejderha kontrol modu yapmak istiyordum, ben de kendim yapmaya karar verdim.
+
+Bu modu yapay zekâ ile yaptım. Fikir, özellikler, tasarım kararları ve oyundaki bütün testler benim; kodun büyük kısmını benim yönlendirmemle Claude (Anthropic) yazdı. Bundan pişman değilim.
+
 ## Commands
 
 - `/cud list` lists your dragons and their state
@@ -98,3 +108,7 @@ English, Türkçe, Русский, Español, Português, Deutsch.
 1. Put the Ice and Fire CE jar and its libraries in `libs/` (see `libs/README.md`).
 2. Run `./gradlew build`. The jar ends up in `build/libs/`.
 3. `./gradlew runClient` starts a development client.
+
+## Download
+
+The official download is on CurseForge: **[IaF: Control Ur Dragon on CurseForge](https://www.curseforge.com/minecraft/mc-mods/iaf-control-ur-dragon)**. It needs [Ice and Fire: Community Edition](https://github.com/IAFEnvoy/IceAndFire-CE) on both the client and the server.
